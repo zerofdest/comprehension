@@ -271,6 +271,7 @@ TARGET_LANG = "en"
 | `ENABLE_TRANSLATE` | `False` | 是否同時啟用接入[YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher)的端點 |
 | `CONTEXT` | 日本 VTuber 直播觀眾留言情境 | 接入[YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher)時使用的上下文提示 |
 | `SOURCE_LANG` | `ja` | 接入[YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher)的固定來源語言，不影響X-translate |
+
 對YouTube彈幕化及翻譯感興趣的參見[接入 YoutubeLiveChatFlusher](#接入-YoutubeLiveChatFlusher)
 
 `AUTO_CONTEXT` 和 `CONTEXT` 也可分別透過環境變數 `PLAMO_AUTO_CONTEXT` 和 `PLAMO_CONTEXT` 自訂。
