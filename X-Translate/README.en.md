@@ -374,13 +374,13 @@ Do not use `/translate` as the URL here: that endpoint is designed for fixed-sou
 
 | Problem | What to check |
 | --- | --- |
+| **Long posts are translated incompletely** | Increase the values of `--n-predict` and `--ctx-size` based on the token usage information displayed in the command prompt window of `plamo_flusher_bridge.py`. |
 | Python cannot find llama-server or the GGUF file | Make sure `LLAMA_SERVER_EXE` / `GGUF_MODEL_FILE` point to existing files |
 | Port already in use | Stop the service occupying `8000` or `8001`, or change the Python ports; if you change `PORT`, update the client URL accordingly |
 | Model fails to load | Check whether your llama.cpp version supports PLaMo 3, whether all backend runtime libraries are available, and whether you have sufficient RAM / VRAM |
 | Browser reports a connection permission issue | Check whether the userscript manager allows access to local addresses and confirm the Python service is running |
 | Still using Google Translate | Make sure the external translator is enabled, the URL is correct, and the source language meets the allowlist criteria; check Python logs and fallback warnings in the browser developer tools |
 | Wrong target language | Change `TARGET_LANG` in Python and restart; also adjust the target language in X Translate |
-| Long posts are translated incompletely | Check the context budget, `--n-predict`, parallel slots, and GET request length limits. The bridge accepts 1–5000 characters, but the default token budget does not guarantee translation of every input within that range |
 | `/translate` returns 404 | This endpoint is disabled by default; set `ENABLE_TRANSLATE = True` and restart if needed |
 
 By default, the bridge listens only on local address `127.0.0.1`, has no API key authentication, and allows cross-origin access. Keep the local binding and avoid exposing it directly to your LAN or the Internet. Text in GET requests may also appear in local HTTP access logs.
