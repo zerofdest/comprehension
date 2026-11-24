@@ -262,15 +262,17 @@ The current Python example uses a fixed `TARGET_LANG` for both endpoints and ign
 
 Other optional parameters:
 
-| Parameter | Default | Purpose |
+| Parameter | Default Value | Purpose |
 | --- | --- | --- |
-| `HOST` / `PORT` | `127.0.0.1` / `8001` | External translation bridge address |
+| `HOST` / `PORT` | `127.0.0.1` / `8001` | External translation bridge service address |
 | `LLAMA_HOST` / `LLAMA_PORT` | `127.0.0.1` / `8000` | llama-server backend address |
-| `LLAMA_STARTUP_TIMEOUT` | `120` | Time to wait for the model to load (seconds) |
-| `ENABLE_TRANSLATE` | `False` | Whether to also enable the fixed-source-language `/translate` endpoint |
-| `SOURCE_LANG` | `ja` | Fixed source language of `/translate`; does not affect `/translate-auto` |
-| `AUTO_CONTEXT` | X post context | Context prompt used by `/translate-auto` |
-| `CONTEXT` | Japanese VTuber livestream viewer comments | Context prompt used by `/translate` |
+| `LLAMA_STARTUP_TIMEOUT` | `120` | Maximum time to wait for the model to load (seconds) |
+| `AUTO_CONTEXT` | X post context | Context prompt used by X-translate |
+| `ENABLE_TRANSLATE` | `False` | Whether to also enable the endpoint for integration with [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) |
+| `CONTEXT` | Viewer comments in Japanese VTuber livestreams | Context prompt used when integrating with [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) |
+| `SOURCE_LANG` | `ja` | Fixed source language for integration with [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher). Does not affect X-translate |
+
+If you are interested in displaying YouTube live chat as scrolling on-screen comments and translating them, see [Integration with YoutubeLiveChatFlusher](#Use-with-YoutubeLiveChatFlusher).
 
 `AUTO_CONTEXT` and `CONTEXT` can also be customized using the `PLAMO_AUTO_CONTEXT` and `PLAMO_CONTEXT` environment variables, respectively.
 
