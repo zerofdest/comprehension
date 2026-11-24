@@ -267,10 +267,11 @@ TARGET_LANG = "en"
 | `HOST` / `PORT` | `127.0.0.1` / `8001` | 外部翻譯橋接服務位址 |
 | `LLAMA_HOST` / `LLAMA_PORT` | `127.0.0.1` / `8000` | llama-server 後端位址 |
 | `LLAMA_STARTUP_TIMEOUT` | `120` | 等待模型載入的時間（秒） |
-| `ENABLE_TRANSLATE` | `False` | 是否同時啟用固定來源語言的 `/translate` 端點 |
-| `SOURCE_LANG` | `ja` | `/translate` 的固定來源語言，不影響 `/translate-auto` |
-| `AUTO_CONTEXT` | X 貼文情境 | `/translate-auto` 使用的上下文提示 |
-| `CONTEXT` | 日本 VTuber 直播觀眾留言情境 | `/translate` 使用的上下文提示 |
+| `AUTO_CONTEXT` | X 貼文情境 | 針對X-translate使用的上下文提示 |
+| `ENABLE_TRANSLATE` | `False` | 是否同時啟用接入[YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher)的端點 |
+| `CONTEXT` | 日本 VTuber 直播觀眾留言情境 | 接入[YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher)時使用的上下文提示 |
+| `SOURCE_LANG` | `ja` | 接入[YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher)的固定來源語言，不影響X-translate |
+對YouTube彈幕化及翻譯感興趣的參見[接入 YoutubeLiveChatFlusher](#接入-YoutubeLiveChatFlusher)
 
 `AUTO_CONTEXT` 和 `CONTEXT` 也可分別透過環境變數 `PLAMO_AUTO_CONTEXT` 和 `PLAMO_CONTEXT` 自訂。
 
@@ -383,7 +384,7 @@ curl.exe --noproxy "*" -G "http://127.0.0.1:8001/translate-auto" --data-urlencod
 
 橋接服務預設僅監聽本機 `127.0.0.1`，沒有 API Key 驗證，且允許跨來源存取。建議保留本機監聽位址，不要直接公開至區域網路或網際網路。GET 請求文字也可能出現在本機 HTTP 存取記錄中。
 
-## 與 YoutubeLiveChatFlusher 配合使用
+## 接入 YoutubeLiveChatFlusher
 
 同一個 `plamo_flusher_bridge.py` 也可以直接串接 [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher)（YouTube Live 彈幕瀏覽器擴充功能），不需額外啟動第二個模型執行個體。
 
