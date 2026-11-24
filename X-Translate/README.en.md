@@ -1,6 +1,6 @@
 # X Translate
 
-[日本語](README.md) | **English** | [繁體中文（台灣）](README.zh-TW.md)
+[日本語](README.md) | **English** | [繁體中文（台灣）](README.zh-hant.md)
 
 An automatic translation userscript for [X (Twitter)](https://x.com/). It replaces X's lousy built-in Grok translations with Google Translate and can also connect to local translation models such as PLaMo 3 Translate or other external translation services.
 
