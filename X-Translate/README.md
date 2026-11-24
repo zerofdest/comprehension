@@ -192,7 +192,7 @@ Google 翻訳のメインエンドポイントが使用するネストされた�
 
 PLaMo 3 シリーズの最新作。1B 未満の翻訳モデルの中では最高クラスと言っても過言ではありません。ただし、対応言語によって翻訳品質には差があります。
 
-X Translate のデフォルトの外部サービス設定は、[PLaMo 3 Translate 0.8B](https://huggingface.co/pfnet/plamo-3-translate-0.8b) の `Q4_K_M` 量子化 GGUF モデルを使用するサンプルスクリプト `plamo_flusher_bridge.py` に対応しています。
+X Translate のデフォルトの外部サービス設定は、[PLaMo 3 Translate 0.8B](https://huggingface.co/pfnet/plamo-3-translate-0.8b) の `Q4_K_M` 量子化 GGUF モデルを使用するサンプルスクリプト [plamo_flusher_bridge.py](https://github.com/zerofdest/comprehension/blob/main/X-Translate/plamo_flusher_bridge.py) に対応しています。
 
 PLaMo 3 Translate は Preferred Networks（PFN）が開発した翻訳専用モデルで、中国語の簡体字・繁体字を含む 53 種類の言語コードに対応し、コンテキストや用語集も利用できます。デフォルトの GGUF ファイルは約 0.57 GB です。実行時には別途メモリまたは VRAM が必要です。
 
@@ -220,7 +220,7 @@ X Translate                GET /translate-auto
 - [llama.cpp Releases](https://github.com/ggml-org/llama.cpp/releases)：PLaMo 3 Translate に対応する Windows ビルドをダウンロードします。ハードウェアに合わせて CPU、CUDA、Vulkan などのバックエンドを選択し、解凍して実行に必要なファイルをすべて保持してください。CUDA ビルドで追加のランタイムライブラリが必要な場合は、該当リリースの説明に従ってダウンロードしてください。
   - 推奨バージョン：[b12359](https://github.com/ggml-org/llama.cpp/releases/tag/b12359)
 - [PLaMo 3 Translate 0.8B GGUF（公式モデルリポジトリ）](https://huggingface.co/pfnet/plamo-3-translate-0.8b-GGUF)：[`plamo-3-translate-0.8b-Q4_K_M.gguf`](https://huggingface.co/pfnet/plamo-3-translate-0.8b-GGUF/resolve/main/plamo-3-translate-0.8b-Q4_K_M.gguf) をダウンロードします。
-- サンプル起動スクリプト：`plamo_flusher_bridge.py`
+- サンプル起動スクリプトをダウンロードして実行する：[plamo_flusher_bridge.py](https://github.com/zerofdest/comprehension/blob/main/X-Translate/plamo_flusher_bridge.py)
 
 モデルの [PLaMo Community License](https://huggingface.co/pfnet/plamo-3-translate-0.8b-GGUF#license) も遵守してください。
 
