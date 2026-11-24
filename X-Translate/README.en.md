@@ -9,7 +9,7 @@ Google Translate is used by default, with no model deployment or API key require
 - Grok translation
   - Terrible translation quality, with frequent bugs in automatic translation and other features.
 - Google Translate
-  - This script supports fully automatic translation. Overall translation quality is slightly better than Grok's, with slightly lower latency.
+  - This script supports fully automatic translation. Overall translation quality is slightly better than Grok's, with slightly higher latency.
 - Locally hosted `plamo-3-translate-0.8b-Q4_K_M`
   - Good translation quality with extremely low latency, translating posts on the page almost instantly.
 
