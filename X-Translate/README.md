@@ -262,15 +262,17 @@ TARGET_LANG = "en"
 
 その他の任意設定：
 
-| パラメーター | デフォルト値 | 用途 |
+| パラメータ | デフォルト値 | 用途 |
 | --- | --- | --- |
 | `HOST` / `PORT` | `127.0.0.1` / `8001` | 外部翻訳ブリッジサービスのアドレス |
 | `LLAMA_HOST` / `LLAMA_PORT` | `127.0.0.1` / `8000` | llama-server バックエンドのアドレス |
 | `LLAMA_STARTUP_TIMEOUT` | `120` | モデルの読み込みを待機する時間（秒） |
-| `ENABLE_TRANSLATE` | `False` | 原文言語固定の `/translate` エンドポイントも有効にするかどうか |
-| `SOURCE_LANG` | `ja` | `/translate` の固定原文言語。`/translate-auto` には影響しない |
-| `AUTO_CONTEXT` | X のポストを想定 | `/translate-auto` が使用するコンテキストプロンプト |
-| `CONTEXT` | 日本の VTuber 配信の視聴者コメントを想定 | `/translate` が使用するコンテキストプロンプト |
+| `AUTO_CONTEXT` | X のポストの文脈 | X-translate で使用するコンテキストプロンプト |
+| `ENABLE_TRANSLATE` | `False` | [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) との連携用エンドポイントも有効にするかどうか |
+| `CONTEXT` | 日本の VTuber のライブ配信における視聴者コメントの文脈 | [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) との連携時に使用するコンテキストプロンプト |
+| `SOURCE_LANG` | `ja` | [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) との連携時に使用する固定の翻訳元言語。X-translate には影響しません |
+
+YouTube のライブチャットの弾幕表示や翻訳に興味のある方は、[YoutubeLiveChatFlusher との連携](#youtubelivechatflusher-との連携)をご参照ください。
 
 `AUTO_CONTEXT` と `CONTEXT` は、それぞれ環境変数 `PLAMO_AUTO_CONTEXT` と `PLAMO_CONTEXT` でもカスタマイズできます。
 
