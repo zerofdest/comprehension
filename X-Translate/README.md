@@ -1,6 +1,6 @@
 # X Translate
 
-[**日本語**](https://github.com/zerofdest/comprehension/edit/main/X-Translate/README.md) | [English](README.en.md) | [繁體中文](README.zh-hant.md)
+[**日本語**](https://github.com/zerofdest/comprehension/edit/main/X-Translate/README.md) | [English](https://github.com/zerofdest/comprehension/edit/main/X-Translate/README.en.md) | [繁體中文](https://github.com/zerofdest/comprehension/edit/main/X-Translate/README.zh-hant.md)
 
 [X（旧Twitter）](https://x.com/) 向けの自動翻訳ユーザースクリプト（Userscript）です。X 標準のひどい Grok 翻訳を Google 翻訳に置き換えるほか、PLaMo 3 Translate などのローカル翻訳モデルや、その他の外部翻訳サービスにも接続できます。
 
