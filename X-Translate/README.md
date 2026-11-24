@@ -220,7 +220,7 @@ X Translate                GET /translate-auto
 - [llama.cpp Releases](https://github.com/ggml-org/llama.cpp/releases)：PLaMo 3 Translate に対応する Windows ビルドをダウンロードします。ハードウェアに合わせて CPU、CUDA、Vulkan などのバックエンドを選択し、解凍して実行に必要なファイルをすべて保持してください。CUDA ビルドで追加のランタイムライブラリが必要な場合は、該当リリースの説明に従ってダウンロードしてください。
   - 推奨バージョン：[b12359](https://github.com/ggml-org/llama.cpp/releases/tag/b12359)
 - [PLaMo 3 Translate 0.8B GGUF（公式モデルリポジトリ）](https://huggingface.co/pfnet/plamo-3-translate-0.8b-GGUF)：[`plamo-3-translate-0.8b-Q4_K_M.gguf`](https://huggingface.co/pfnet/plamo-3-translate-0.8b-GGUF/resolve/main/plamo-3-translate-0.8b-Q4_K_M.gguf) をダウンロードします。
-- サンプル起動スクリプトをダウンロードして実行する：[plamo_flusher_bridge.py](https://github.com/zerofdest/comprehension/blob/main/X-Translate/plamo_flusher_bridge.py)
+- サンプル起動スクリプト：[plamo_flusher_bridge.py](https://github.com/zerofdest/comprehension/blob/main/X-Translate/plamo_flusher_bridge.py)
 
 モデルの [PLaMo Community License](https://huggingface.co/pfnet/plamo-3-translate-0.8b-GGUF#license) も遵守してください。
 
