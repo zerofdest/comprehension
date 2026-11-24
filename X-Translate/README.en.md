@@ -220,7 +220,7 @@ The following instructions use Windows as an example:
 - [llama.cpp Releases](https://github.com/ggml-org/llama.cpp/releases): Download a Windows build that supports PLaMo 3 Translate. Select the CPU, CUDA, Vulkan, or other backend appropriate for your hardware, extract the archive, and keep all required runtime files. If the CUDA build requires additional runtime libraries, download them according to the corresponding release instructions.
   - Recommended version: [b12359](https://github.com/ggml-org/llama.cpp/releases/tag/b12359).
 - [PLaMo 3 Translate 0.8B GGUF (official model repository)](https://huggingface.co/pfnet/plamo-3-translate-0.8b-GGUF): Download [`plamo-3-translate-0.8b-Q4_K_M.gguf`](https://huggingface.co/pfnet/plamo-3-translate-0.8b-GGUF/resolve/main/plamo-3-translate-0.8b-Q4_K_M.gguf).
-- Example startup script: `plamo_flusher_bridge.py`
+- Example startup script: [plamo_flusher_bridge.py](plamo_flusher_bridge.py)
 
 Please also comply with the model's [PLaMo Community License](https://huggingface.co/pfnet/plamo-3-translate-0.8b-GGUF#license).
 
