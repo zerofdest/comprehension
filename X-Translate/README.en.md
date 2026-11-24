@@ -192,7 +192,7 @@ The nested array format used by the primary Google Translate endpoint is also su
 
 The latest work in the PLaMo 3 series. Arguably the best translation model in the sub-1B class, although quality varies across supported languages.
 
-X Translate's default external translator configuration is designed for the example script `plamo_flusher_bridge.py`, using the `Q4_K_M` GGUF quantization of [PLaMo 3 Translate 0.8B](https://huggingface.co/pfnet/plamo-3-translate-0.8b).
+X Translate's default external translator configuration is designed for the example script [plamo_flusher_bridge.py](plamo_flusher_bridge.py), using the `Q4_K_M` GGUF quantization of [PLaMo 3 Translate 0.8B](https://huggingface.co/pfnet/plamo-3-translate-0.8b).
 
 PLaMo 3 Translate is a dedicated translation model developed by Preferred Networks (PFN). It supports 53 language codes (including Simplified and Traditional Chinese), context, and glossaries. The default GGUF file is approximately 0.57 GB; additional RAM or VRAM is required at runtime.
 
