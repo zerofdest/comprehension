@@ -192,7 +192,7 @@ URL 中的預留位置會自動進行 URL 編碼，僅允許出現在路徑或�
 
 PLaMo 3 最新力作，說是 1B 以下效果最好的翻譯模型也不為過，不過各支援語言的翻譯效果有所差異。
 
-X Translate 的預設外部服務設定適用於範例腳本 `plamo_flusher_bridge.py`，使用 [PLaMo 3 Translate 0.8B](https://huggingface.co/pfnet/plamo-3-translate-0.8b) 的 `Q4_K_M` GGUF 量化模型。
+X Translate 的預設外部服務設定適用於範例腳本 [plamo_flusher_bridge.py](plamo_flusher_bridge.py)，使用 [PLaMo 3 Translate 0.8B](https://huggingface.co/pfnet/plamo-3-translate-0.8b) 的 `Q4_K_M` GGUF 量化模型。
 
 PLaMo 3 Translate 是 Preferred Networks（PFN）開發的專用翻譯模型，支援 53 種語言代碼（包含簡體及繁體中文），並支援上下文及術語表。預設 GGUF 檔案約 0.57 GB；實際執行還需要額外的記憶體或顯示記憶體（VRAM）。
 
@@ -220,7 +220,7 @@ X Translate                GET /translate-auto
 - [llama.cpp Releases](https://github.com/ggml-org/llama.cpp/releases)：下載支援 PLaMo 3 Translate 的 Windows 建構，依硬體選擇 CPU、CUDA 或 Vulkan 等後端，解壓縮並保留全部執行所需檔案。CUDA 建構如需額外的執行階段程式庫，也應依對應 Release 說明下載。
   - 推薦 [b12359](https://github.com/ggml-org/llama.cpp/releases/tag/b12359) 版本
 - [PLaMo 3 Translate 0.8B GGUF（官方模型儲存庫）](https://huggingface.co/pfnet/plamo-3-translate-0.8b-GGUF)：下載 [`plamo-3-translate-0.8b-Q4_K_M.gguf`](https://huggingface.co/pfnet/plamo-3-translate-0.8b-GGUF/resolve/main/plamo-3-translate-0.8b-Q4_K_M.gguf)。
-- 範例啟動腳本：`plamo_flusher_bridge.py`
+- 範例啟動腳本：[plamo_flusher_bridge.py](plamo_flusher_bridge.py)
 
 請同時遵守模型的 [PLaMo Community License](https://huggingface.co/pfnet/plamo-3-translate-0.8b-GGUF#license)。
 
