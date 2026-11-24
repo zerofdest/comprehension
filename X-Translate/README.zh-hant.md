@@ -374,13 +374,13 @@ curl.exe --noproxy "*" -G "http://127.0.0.1:8001/translate-auto" --data-urlencod
 
 | 問題 | 疑難排解方法 |
 | --- | --- |
+| **長貼文譯文不完整** | 根據plamo_flusher_bridge.py的cmd窗口的Token usage信息增大`--n-predict`與`--ctx-size` |
 | Python 找不到 llama-server 或 GGUF | 檢查 `LLAMA_SERVER_EXE` / `GGUF_MODEL_FILE` 是否指向實際存在的檔案 |
 | 連接埠已被佔用 | 停止佔用 `8000` 或 `8001` 的服務，或修改 Python 連接埠；若修改 `PORT`，同步更新用戶端 URL |
 | 模型無法載入 | 檢查 llama.cpp 版本是否支援 PLaMo 3、後端執行階段程式庫是否齊全，以及可用記憶體 / 顯示記憶體（VRAM） |
 | 瀏覽器提示連線權限問題 | 檢查 Userscript 管理員是否允許存取本機位址，並確認 Python 服務已啟動 |
 | 仍在使用 Google Translate | 確認已啟用外部翻譯、URL 正確、來源語言符合白名單；檢查 Python 記錄及瀏覽器開發人員工具中的回退警告 |
 | 翻譯為錯誤的目標語言 | 修改 Python 的 `TARGET_LANG` 並重新啟動，同時調整 X Translate 的目標語言 |
-| 長貼文譯文不完整 | 檢查上下文預算、`--n-predict`、平行槽位及 GET 請求長度限制；橋接介面接受 1–5000 字元，但不保證該長度均可在預設 token 預算內完成翻譯 |
 | `/translate` 回傳 404 | 該端點預設關閉；如需使用，請設定 `ENABLE_TRANSLATE = True` 並重新啟動 |
 
 橋接服務預設僅監聽本機 `127.0.0.1`，沒有 API Key 驗證，且允許跨來源存取。建議保留本機監聽位址，不要直接公開至區域網路或網際網路。GET 請求文字也可能出現在本機 HTTP 存取記錄中。
