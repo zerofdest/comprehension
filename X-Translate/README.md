@@ -272,7 +272,7 @@ TARGET_LANG = "en"
 | `CONTEXT` | 日本の VTuber のライブ配信における視聴者コメントの文脈 | [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) との連携時に使用するコンテキストプロンプト |
 | `SOURCE_LANG` | `ja` | [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) との連携時に使用する固定の翻訳元言語。X-translate には影響しません |
 
-YouTube のライブチャットの弾幕表示や翻訳に興味のある方は、[YoutubeLiveChatFlusher との連携](#youtubelivechatflusher-との連携)をご参照ください。
+YouTube のライブチャットの弾幕表示や翻訳に興味のある方は、[YoutubeLiveChatFlusher との連携](#YoutubeLiveChatFlusher-との併用)をご参照ください。
 
 `AUTO_CONTEXT` と `CONTEXT` は、それぞれ環境変数 `PLAMO_AUTO_CONTEXT` と `PLAMO_CONTEXT` でもカスタマイズできます。
 
