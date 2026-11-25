@@ -3,15 +3,15 @@
 Edit LLAMA_SERVER_EXE and GGUF_MODEL_FILE below, then run:
   python plamo_flusher_bridge.py
 
-GET http://127.0.0.1:8001/translate?q=$q       Japanese -> Traditional Chinese (disabled by default)
-GET http://127.0.0.1:8001/translate-auto?q=$q  Auto source -> Traditional Chinese
-Set ENABLE_TRANSLATE = True to enable the Japanese endpoint before launch.
+GET http://127.0.0.1:8001/translate?q=$q       Auto source -> Traditional Chinese (VTuber comments; disabled by default)
+GET http://127.0.0.1:8001/translate-auto?q=$q  Auto source -> Traditional Chinese (X posts)
+Set ENABLE_TRANSLATE = True to enable the VTuber comments endpoint before launch.
 Both endpoints use the Google Translate-style JSON response used by YT Flusher.
 Incoming sl/tl query parameters are ignored by both endpoints.
 
 Optional environment variables:
-  PLAMO_CONTEXT       context for the Japanese endpoint (default: VTuber comments)
-  PLAMO_AUTO_CONTEXT  context for the auto-detect endpoint (default: X推文)
+  PLAMO_CONTEXT       context for the VTuber comments endpoint (default: VTuber comments)
+  PLAMO_AUTO_CONTEXT  context for the X posts endpoint (default: X推文)
 Sampling controls and maximum prediction tokens remain in llama-server CLI.
 """
 
@@ -31,8 +31,17 @@ LLAMA_SERVER_EXE = Path(r"I:\llama.cpp\llama-server.exe")
 GGUF_MODEL_FILE = Path(r"I:\_models\plamo-3-translate-0.8b-Q4_K_M.gguf")
 # ================================================================
 
+ENABLE_TRANSLATE = False    # Enable the VTuber comments /translate endpoint
+TARGET_LANG = "zh-hant"      # Fixed target for both endpoints
+
+AUTO_CONTEXT = os.getenv("PLAMO_AUTO_CONTEXT", "X（旧Twitter）に投稿されたポストです。")
+CONTEXT = os.getenv(
+    "PLAMO_CONTEXT",
+    "日本のVTuber配信の視聴者コメントです。ゲーム、配信、視聴者の俗語が使われています。",
+)
+
 HOST = "127.0.0.1"
-PORT = 8001                 # Flusher calls this adapter
+PORT = 8001                 # Translation API port
 LLAMA_HOST = "127.0.0.1"
 LLAMA_PORT = 8000           # llama-server OpenAI-compatible API
 LLAMA_STARTUP_TIMEOUT = 120  # seconds; startup only, not a translation timeout
@@ -59,20 +68,11 @@ LLAMA_SERVER_ARGS = [
     "--temp", "0",
     "--n-predict", "376"
 ]
-ENABLE_TRANSLATE = False    # Enable the fixed Japanese /translate endpoint
-TARGET_LANG = "zh-hant"      # Fixed target for both endpoints
-SOURCE_LANG = "ja"           # Fixed source for YoutubeLiveChatFlusher only
 
-AUTO_CONTEXT = os.getenv("PLAMO_AUTO_CONTEXT", "X（旧Twitter）に投稿されたポストです。")
-CONTEXT = os.getenv(
-    "PLAMO_CONTEXT",
-    "日本のVTuber配信の視聴者コメントです。ゲーム、配信、視聴者の俗語が使われています。",
-)
 GLOSSARY_PATH = Path(__file__).with_name("glossary.json")
 
 TOKENS = ("<|plamo:tag|>", "<|plamo:msg|>", "<|plamo:key|>",
           "<|plamo:val|>", "<|plamo:index|>", "<|plamo:item|>", "<|plamo:bos|>")
-
 
 def start_llama_server() -> subprocess.Popen:
     """Start our own llama-server, refusing to attach to an unrelated port listener."""
@@ -207,10 +207,8 @@ def load_matching_glossary(text: str) -> list[dict]:
     ]
 
 
-def make_prompt(text: str, source_lang: str | None = SOURCE_LANG) -> str:
+def make_prompt(text: str, context: str) -> str:
     prompt = "<|plamo:tag|>dataset<|plamo:msg|>translation"
-    # Keep the Japanese-stream context from influencing language detection.
-    context = CONTEXT if source_lang else AUTO_CONTEXT
     if context:
         prompt += "<|plamo:tag|>context<|plamo:msg|>" + sanitize(context)
     terms = load_matching_glossary(text)
@@ -220,18 +218,17 @@ def make_prompt(text: str, source_lang: str | None = SOURCE_LANG) -> str:
             prompt += "<|plamo:index|>" + sanitize(item["source"])
             prompt += "<|plamo:item|>" + sanitize(item["target"])
     prompt += "<|plamo:tag|>input"
-    if source_lang is not None:
-        prompt += "<|plamo:key|>lang<|plamo:val|>" + source_lang
+    # Omit the input language for automatic source-language detection.
     prompt += "<|plamo:msg|>" + sanitize(text)
     prompt += "<|plamo:tag|>output<|plamo:key|>lang<|plamo:val|>" + TARGET_LANG
     prompt += "<|plamo:msg|>"
     return prompt
 
 
-def translate(text: str, source_lang: str | None = SOURCE_LANG) -> str:
+def translate(text: str, context: str) -> str:
     payload = {
         "model": MODEL,
-        "prompt": make_prompt(text, source_lang),
+        "prompt": make_prompt(text, context),
         "stop": ["<|plamo:tag|>", "<|plamo:bos|>"],
         "stream": False,
     }
@@ -272,17 +269,17 @@ class Handler(BaseHTTPRequestHandler):
         ):
             self.send_json(404, {"error": "Not found"})
             return
-        source_lang = SOURCE_LANG if parts.path == "/translate" else None
+        context = CONTEXT if parts.path == "/translate" else AUTO_CONTEXT
         query = urllib.parse.parse_qs(parts.query, keep_blank_values=True)
         text = query.get("q", [""])[0]
         if not text or len(text) > 5000:
             self.send_json(400, {"error": "q must contain 1-5000 characters"})
             return
-        # sl/tl cannot override the endpoint's source mode or fixed target.
+        # Both endpoints use automatic source detection and a fixed target; ignore sl/tl.
         try:
-            translated = translate(text, source_lang)
+            translated = translate(text, context)
             # "auto" denotes the requested mode, not a detected ISO language code.
-            self.send_json(200, {"sentences": [{"trans": translated}], "src": source_lang or "auto"})
+            self.send_json(200, {"sentences": [{"trans": translated}], "src": "auto"})
         except Exception as exc:
             print(f"Translation failed: {exc}")
             self.send_json(502, {"error": str(exc)})
@@ -298,10 +295,10 @@ if __name__ == "__main__":
         process = start_llama_server()
         wait_for_llama_server(process)
         if ENABLE_TRANSLATE:
-            print(f"Japanese -> {TARGET_LANG}: http://{HOST}:{PORT}/translate?q=$q")
+            print(f"Auto (VTuber comments) -> {TARGET_LANG}: http://{HOST}:{PORT}/translate?q=$q")
         else:
-            print("Japanese endpoint (/translate) is disabled.")
-        print(f"Auto -> {TARGET_LANG}:     http://{HOST}:{PORT}/translate-auto?q=$q")
+            print("VTuber comments endpoint (/translate) is disabled.")
+        print(f"Auto (X posts) -> {TARGET_LANG}: http://{HOST}:{PORT}/translate-auto?q=$q")
         print(f"Backend: {BACKEND_URL}  model={MODEL}")
         print("Request sl/tl parameters are ignored by both endpoints.")
         print(f"Glossary file: {GLOSSARY_PATH}")
