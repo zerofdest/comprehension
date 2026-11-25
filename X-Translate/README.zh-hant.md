@@ -1,6 +1,6 @@
 # X Translate
 
-[日本語](README.md) | [English](README.en.md) | **繁體中文（台灣）**
+[日本語](README.md) | [English](README.en.md) | **繁體中文（台灣）** | [العربية](README.ar.md) | [Español](README.es.md) | [Português](README.pt.md)
 
 適用於 [X（Twitter）](https://x.com/) 的自動翻譯使用者腳本（Userscript）。支援使用 Google Translate 替代 X 原生的垃圾 Grok 翻譯，也可串接 PLaMo 3 Translate 等本機翻譯模型或其他外部翻譯服務。
 
