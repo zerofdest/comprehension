@@ -12,6 +12,7 @@
 // @name:es         X - Traducción automática
 // @description:es  Script de usuario que traduce automáticamente las publicaciones y las biografías de los perfiles de X (Twitter). Sustituye las deficientes traducciones de Grok integradas en X por las de Google Translate y también admite modelos de traducción locales como PLaMo 3 Translate, así como otros servicios de traducción externos.
 // @namespace    https://github.com/USERNAME/X-Translate
+// @supportURL   https://github.com/zerofdest/comprehension/issues
 // @updateURL    https://raw.githubusercontent.com/zerofdest/comprehension/main/X-Translate/X-Translate.user.js
 // @downloadURL  https://raw.githubusercontent.com/zerofdest/comprehension/main/X-Translate/X-Translate.user.js
 // @version      2.0.0
