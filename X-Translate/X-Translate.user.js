@@ -15,7 +15,7 @@
 // @supportURL   https://github.com/zerofdest/comprehension/issues
 // @updateURL    https://raw.githubusercontent.com/zerofdest/comprehension/main/X-Translate/X-Translate.user.js
 // @downloadURL  https://raw.githubusercontent.com/zerofdest/comprehension/main/X-Translate/X-Translate.user.js
-// @version      2.0.0
+// @version      2.0.1
 // @match        https://x.com/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
