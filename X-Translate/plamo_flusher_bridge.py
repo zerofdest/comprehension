@@ -3,15 +3,15 @@
 Edit LLAMA_SERVER_EXE and GGUF_MODEL_FILE below, then run:
   python plamo_flusher_bridge.py
 
-GET http://127.0.0.1:8001/translate?q=$q       Auto source -> Traditional Chinese (VTuber comments; disabled by default)
-GET http://127.0.0.1:8001/translate-auto?q=$q  Auto source -> Traditional Chinese (X posts)
-Set ENABLE_TRANSLATE = True to enable the VTuber comments endpoint before launch.
+GET http://127.0.0.1:8001/translate-X?q=$q  Auto source -> Traditional Chinese (X posts; X-Translate)
+GET http://127.0.0.1:8001/translate?q=$q    Auto source -> Traditional Chinese (Live chat; YT Flusher; disabled by default)
+Set ENABLE_FLUSHER = True to enable the live chat endpoint before launch.
 Both endpoints use the Google Translate-style JSON response used by YT Flusher.
 Incoming sl/tl query parameters are ignored by both endpoints.
 
 Optional environment variables:
-  PLAMO_CONTEXT       context for the VTuber comments endpoint (default: VTuber comments)
-  PLAMO_AUTO_CONTEXT  context for the X posts endpoint (default: X推文)
+  PLAMO_CONTEXT       context for the live chat endpoint
+  PLAMO_AUTO_CONTEXT  context for the X posts endpoint
 Sampling controls and maximum prediction tokens remain in llama-server CLI.
 """
 
@@ -31,13 +31,13 @@ LLAMA_SERVER_EXE = Path(r"I:\llama.cpp\llama-server.exe")
 GGUF_MODEL_FILE = Path(r"I:\_models\plamo-3-translate-0.8b-Q4_K_M.gguf")
 # ================================================================
 
-ENABLE_TRANSLATE = False    # Enable the VTuber comments /translate endpoint
+ENABLE_FLUSHER = False    # Enable the live chat /translate endpoint
 TARGET_LANG = "zh-hant"      # Fixed target for both endpoints
 
 AUTO_CONTEXT = os.getenv("PLAMO_AUTO_CONTEXT", "X（旧Twitter）に投稿されたポストです。")
 CONTEXT = os.getenv(
     "PLAMO_CONTEXT",
-    "日本のVTuber配信の視聴者コメントです。ゲーム、配信、視聴者の俗語が使われています。",
+    "日本の配信者のライブ配信に寄せられた視聴者コメントです。ゲーム、配信、視聴者の俗語が使われています。",
 )
 
 HOST = "127.0.0.1"
@@ -257,15 +257,15 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_OPTIONS(self) -> None:
-        if urllib.parse.urlsplit(self.path).path == "/translate" and not ENABLE_TRANSLATE:
+        if urllib.parse.urlsplit(self.path).path == "/translate" and not ENABLE_FLUSHER:
             self.send_json(404, {"error": "Not found"})
             return
         self.send_json(200, {})
 
     def do_GET(self) -> None:
         parts = urllib.parse.urlsplit(self.path)
-        if parts.path not in ("/translate", "/translate-auto") or (
-            parts.path == "/translate" and not ENABLE_TRANSLATE
+        if parts.path not in ("/translate", "/translate-X") or (
+            parts.path == "/translate" and not ENABLE_FLUSHER
         ):
             self.send_json(404, {"error": "Not found"})
             return
@@ -294,11 +294,11 @@ if __name__ == "__main__":
         server.daemon_threads = True
         process = start_llama_server()
         wait_for_llama_server(process)
-        if ENABLE_TRANSLATE:
-            print(f"Auto (VTuber comments) -> {TARGET_LANG}: http://{HOST}:{PORT}/translate?q=$q")
+        if ENABLE_FLUSHER:
+            print(f"Auto (Flusher) -> {TARGET_LANG}: http://{HOST}:{PORT}/translate?q=$q")
         else:
-            print("VTuber comments endpoint (/translate) is disabled.")
-        print(f"Auto (X posts) -> {TARGET_LANG}: http://{HOST}:{PORT}/translate-auto?q=$q")
+            print("Flusher endpoint (/translate) is disabled.")
+        print(f"Auto (X posts) -> {TARGET_LANG}: http://{HOST}:{PORT}/translate-X?q=$q")
         print(f"Backend: {BACKEND_URL}  model={MODEL}")
         print("Request sl/tl parameters are ignored by both endpoints.")
         print(f"Glossary file: {GLOSSARY_PATH}")

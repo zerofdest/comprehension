@@ -73,7 +73,7 @@ Select **Translator settings** from the X Translate menu in your userscript mana
 | Enable external translator (fallback to Google Translate) | Off | Tries the external service first when enabled; falls back to Google Translate on failure |
 | Use PLaMo (apply source-language whitelist) | On | Applies the PLaMo source-language allowlist to posts; normally disabled when using other services |
 | Request Method | GET | Supports GET and POST |
-| Translation endpoint URL | `http://127.0.0.1:8001/translate-auto?q=$q` | External translation API endpoint |
+| Translation endpoint URL | `http://127.0.0.1:8001/translate-X?q=$q` | External translation API endpoint |
 | Response Style | Google Translate | Select Google Translate or OpenAI to match the service's actual response format |
 | API Type (POST only) | OpenAI Compatible | Uses the built-in OpenAI request format or Custom JSON |
 | API Key (POST only, optional) | Empty | Sent as `Authorization: Bearer ...` when provided |
@@ -198,7 +198,7 @@ PLaMo 3 Translate is a dedicated translation model developed by Preferred Networ
 The Python script starts llama.cpp, constructs PLaMo's PFML3 translation prompt, and converts the model response into a Google Translate-compatible format. A single model process can serve both X Translate and YoutubeLiveChatFlusher.
 
 ```text
-X Translate                GET /translate-auto
+X Translate                GET /translate-X
                                       |
                                       v
                            plamo_flusher_bridge.py :8001
@@ -267,9 +267,8 @@ Other optional parameters:
 | `LLAMA_HOST` / `LLAMA_PORT` | `127.0.0.1` / `8000` | llama-server backend address |
 | `LLAMA_STARTUP_TIMEOUT` | `120` | Maximum time to wait for the model to load (seconds) |
 | `AUTO_CONTEXT` | X post context | Context prompt used by X-translate |
-| `ENABLE_TRANSLATE` | `False` | Whether to also enable the endpoint for integration with [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) |
-| `CONTEXT` | Viewer comments in Japanese VTuber livestreams | Context prompt used when integrating with [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) |
-| `SOURCE_LANG` | `ja` | Fixed source language for integration with [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher). Does not affect X-translate |
+| `ENABLE_FLUSHER` | `False` | Whether to also enable the endpoint for integration with [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) |
+| `CONTEXT` | Viewer comments in Japanese livestreams | Context prompt used when integrating with [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) |
 
 If you are interested in displaying YouTube live chat as scrolling on-screen comments and translating them, see [Integration with YoutubeLiveChatFlusher](#Use-with-YoutubeLiveChatFlusher).
 
@@ -302,7 +301,7 @@ Create a UTF-8 encoded `glossary.json` in the same directory as `plamo_flusher_b
 
 The bridge reads the glossary on every translation request and adds only terms that actually match the source text to the PFML3 prompt. Longer terms take priority when matches overlap, and each term is added only once. Both endpoints share this file.
 
-- **The script works without `glossary.json`**, including when only `/translate-auto` is used.
+- **The script works without `glossary.json`**, including when only `/translate-X` is used.
 - Changes to the file are read on the next translation request; no bridge restart is required.
 - The file must be a JSON array with entries containing non-empty `source` and `target` strings. Invalid JSON or a non-array root causes the translation request to fail.
 - The glossary is supplied as a model prompt, not enforced string replacement, so the model is not guaranteed to use the specified translations in every situation.
@@ -321,12 +320,15 @@ If you use the `python` command instead:
 python plamo_flusher_bridge.py
 ```
 
-There is no need to start llama-server manually beforehand. The Python script starts the model service itself, checks `/health`, and begins handling translation requests when the model is ready. The default logs include messages like these:
+There is no need to start llama-server manually beforehand. The Python script starts the model service itself, checks `/health`, and begins handling translation requests when the model is ready. The default logs include the following information:
 
 ```text
 PLaMo model ready (HTTP /health 200).
-Japanese endpoint (/translate) is disabled.
-Auto -> zh-hant:     http://127.0.0.1:8001/translate-auto?q=$q
+Flusher endpoint (/translate) is disabled.
+Auto (X posts) -> zh-hant: http://127.0.0.1:8001/translate-X?q=$q
+Backend: http://127.0.0.1:8000/v1/completions  model=plamo-3-translate
+Request sl/tl parameters are ignored by both endpoints.
+Glossary file: F:\_repositories\comprehension\X-Translate\glossary.json
 Press Ctrl+C to stop both services.
 ```
 
@@ -334,13 +336,13 @@ Two API paths are provided by the example, with the following default states:
 
 | URL | Source language | Target language | Default state |
 | --- | --- | --- | --- |
-| `http://127.0.0.1:8001/translate-auto?q=$q` | Automatically detected by the model | `TARGET_LANG` | Enabled |
-| `http://127.0.0.1:8001/translate?q=$q` | `SOURCE_LANG` (default `ja`) | `TARGET_LANG` | Disabled |
+| `http://127.0.0.1:8001/translate-X?q=$q` | Automatically detected by the model | `TARGET_LANG` | Enabled |
+| `http://127.0.0.1:8001/translate?q=$q` | Automatically detected by the model | `TARGET_LANG` | Disabled |
 
 Test from another terminal (`curl.exe` automatically encodes the text as a URL query parameter):
 
 ```bat
-curl.exe --noproxy "*" -G "http://127.0.0.1:8001/translate-auto" --data-urlencode "q=Hello, world!"
+curl.exe --noproxy "*" -G "http://127.0.0.1:8001/translate-X" --data-urlencode "q=Hello, world!"
 ```
 
 If the service is working, it returns JSON similar to the following (the translation depends on the model and configuration):
@@ -362,12 +364,12 @@ Open X and go to **Translator settings** in your userscript manager. Use the fol
 | Enable external translator (fallback to Google Translate) | On |
 | Use PLaMo (apply source-language whitelist) | On |
 | Request Method | GET |
-| Translation endpoint URL | `http://127.0.0.1:8001/translate-auto?q=$q` |
+| Translation endpoint URL | `http://127.0.0.1:8001/translate-X?q=$q` |
 | Response Style | Google Translate |
 
 Click `Save`. After the page reloads automatically, local PLaMo translation is prioritized for posts and bios. Make sure that `Set translation language` matches the Python script's `TARGET_LANG`.
 
-Do not use `/translate` as the URL here: that endpoint is designed for fixed-source-language livestream chat translation and is disabled by default.
+Do not use `/translate` as the URL here: that endpoint is designed for livestream chat translation and is disabled by default.
 
 ### Troubleshooting
 
@@ -380,7 +382,7 @@ Do not use `/translate` as the URL here: that endpoint is designed for fixed-sou
 | Browser reports a connection permission issue | Check whether the userscript manager allows access to local addresses and confirm the Python service is running |
 | Still using Google Translate | Make sure the external translator is enabled, the URL is correct, and the source language meets the allowlist criteria; check Python logs and fallback warnings in the browser developer tools |
 | Wrong target language | Change `TARGET_LANG` in Python and restart; also adjust the target language in X Translate |
-| `/translate` returns 404 | This endpoint is disabled by default; set `ENABLE_TRANSLATE = True` and restart if needed |
+| `/translate` returns 404 | This endpoint is disabled by default; set `ENABLE_FLUSHER = True` and restart if needed |
 
 By default, the bridge listens only on local address `127.0.0.1`, has no API key authentication, and allows cross-origin access. Keep the local binding and avoid exposing it directly to your LAN or the Internet. Text in GET requests may also appear in local HTTP access logs.
 
@@ -388,15 +390,13 @@ By default, the bridge listens only on local address `127.0.0.1`, has no API key
 
 The same `plamo_flusher_bridge.py` can also connect directly to [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher), a browser extension for displaying YouTube Live chat as scrolling comments. No second model instance is required.
 
-First, enable the fixed-source-language endpoint in the Python script:
+First, enable the Flusher endpoint in the Python script:
 
 ```python
-ENABLE_TRANSLATE = True
-SOURCE_LANG = "ja"
-TARGET_LANG = "zh-hant"
+ENABLE_FLUSHER = True
 ```
 
-Save the file and run `plamo_flusher_bridge.py` again. `SOURCE_LANG` is fixed to Japanese by default, making it suitable for Japanese livestream comments. `TARGET_LANG` can be changed as needed, but both endpoints share the same target language.
+Save the file and run `plamo_flusher_bridge.py` again. `TARGET_LANG` can be changed as needed, but both endpoints share the same target language.
 
 In YoutubeLiveChatFlusher's **Translator** settings, select **External service**, enable translation, and configure it as follows:
 
@@ -406,7 +406,7 @@ In YoutubeLiveChatFlusher's **Translator** settings, select **External service**
 | URL | `http://127.0.0.1:8001/translate?q=$q` |
 | Response Style | Google Translate |
 
-Both projects can run at the same time: X Translate uses `/translate-auto` for automatic source-language detection, while YoutubeLiveChatFlusher uses `/translate` with a fixed source language and its own livestream comment context. Both share the same PLaMo model and glossary. If you only use X Translate, leave `ENABLE_TRANSLATE = False`.
+Both projects can run at the same time: X Translate and YoutubeLiveChatFlusher share the same PLaMo model and glossary, differing only in their URLs and context. If you only use X Translate, leave `ENABLE_FLUSHER = False`.
 
 ## License
 

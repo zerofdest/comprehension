@@ -74,7 +74,7 @@ X のページでブラウザのユーザースクリプトマネージャーの
 | Enable external translator (fallback to Google Translate) | オフ | 有効にすると外部サービスを優先し、失敗時は Google 翻訳へフォールバック |
 | Use PLaMo (apply source-language whitelist) | オン | ポストに PLaMo の原文言語ホワイトリストを適用。他のサービスを使用する場合は通常オフにする |
 | Request Method | GET | GET と POST に対応 |
-| Translation endpoint URL | `http://127.0.0.1:8001/translate-auto?q=$q` | 外部翻訳 API の URL |
+| Translation endpoint URL | `http://127.0.0.1:8001/translate-X?q=$q` | 外部翻訳 API の URL |
 | Response Style | Google Translate | サービスの実際のレスポンス形式に合わせて Google Translate または OpenAI を選択 |
 | API Type（POST のみ） | OpenAI Compatible | 組み込みの OpenAI リクエスト形式、または Custom JSON を使用 |
 | API Key（POST のみ、任意） | 空欄 | 入力した場合は `Authorization: Bearer ...` として送信 |
@@ -199,7 +199,7 @@ PLaMo 3 Translate は Preferred Networks（PFN）が開発した翻訳専用モ�
 この Python スクリプトは llama.cpp の起動、PLaMo の PFML3 翻訳プロンプトの生成、モデルのレスポンスの Google Translate 互換形式への変換を行います。1 つのモデルプロセスで X Translate と YoutubeLiveChatFlusher の両方に対応できます。
 
 ```text
-X Translate                GET /translate-auto
+X Translate                GET /translate-X
                                       |
                                       v
                            plamo_flusher_bridge.py :8001
@@ -268,9 +268,8 @@ TARGET_LANG = "en"
 | `LLAMA_HOST` / `LLAMA_PORT` | `127.0.0.1` / `8000` | llama-server バックエンドのアドレス |
 | `LLAMA_STARTUP_TIMEOUT` | `120` | モデルの読み込みを待機する時間（秒） |
 | `AUTO_CONTEXT` | X のポストの文脈 | X-translate で使用するコンテキストプロンプト |
-| `ENABLE_TRANSLATE` | `False` | [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) との連携用エンドポイントも有効にするかどうか |
-| `CONTEXT` | 日本の VTuber のライブ配信における視聴者コメントの文脈 | [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) との連携時に使用するコンテキストプロンプト |
-| `SOURCE_LANG` | `ja` | [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) との連携時に使用する固定の翻訳元言語。X-translate には影響しません |
+| `ENABLE_FLUSHER` | `False` | [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) との連携用エンドポイントも有効にするかどうか |
+| `CONTEXT` | 日本のライブ配信における視聴者コメントの文脈 | [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) との連携時に使用するコンテキストプロンプト |
 
 YouTube のライブチャットの弾幕表示や翻訳に興味のある方は、[YoutubeLiveChatFlusher との連携](#YoutubeLiveChatFlusher-との併用)をご参照ください。
 
@@ -303,7 +302,7 @@ llama.cpp のデフォルト起動パラメーターの主な設定：
 
 ブリッジスクリプトは翻訳リクエストのたびに用語集を読み込み、原文中に実際に一致する用語のみを PFML3 プロンプトに追加します。一致箇所が重複する場合は長い用語を優先し、同じ用語は 1 回のみ追加します。両エンドポイントでこのファイルを共有します。
 
-- **`glossary.json` がなくても正常に動作します。** `/translate-auto` のみを使用する場合も同様です。
+- **`glossary.json` がなくても正常に動作します。** `/translate-X` のみを使用する場合も同様です。
 - ファイルの変更内容は次回の翻訳リクエストから読み込まれるため、ブリッジサービスの再起動は不要です。
 - ファイルは JSON 配列とし、各要素には空でない `source` と `target` の文字列を含めてください。不正な JSON やトップレベルが配列でない場合、翻訳リクエストが失敗します。
 - 用語集はモデルに対するプロンプトとして渡されるものであり、強制的な文字列置換ではありません。すべての場面で指定した訳語が使用されることを保証するものではありません。
@@ -322,12 +321,15 @@ py plamo_flusher_bridge.py
 python plamo_flusher_bridge.py
 ```
 
-事前に llama-server を手動で起動する必要はありません。Python スクリプトがモデルサービスを起動し、`/health` を確認して、モデルの準備が整い次第翻訳リクエストの処理を開始します。デフォルト設定では以下のようなログが表示されます。
+事前に llama-server を手動で起動する必要はありません。Python スクリプトがモデルサービスを起動し、`/health` を確認して、モデルの準備が整い次第翻訳リクエストの処理を開始します。デフォルト設定では以下の情報がログに表示されます。
 
 ```text
 PLaMo model ready (HTTP /health 200).
-Japanese endpoint (/translate) is disabled.
-Auto -> zh-hant:     http://127.0.0.1:8001/translate-auto?q=$q
+Flusher endpoint (/translate) is disabled.
+Auto (X posts) -> zh-hant: http://127.0.0.1:8001/translate-X?q=$q
+Backend: http://127.0.0.1:8000/v1/completions  model=plamo-3-translate
+Request sl/tl parameters are ignored by both endpoints.
+Glossary file: F:\_repositories\comprehension\X-Translate\glossary.json
 Press Ctrl+C to stop both services.
 ```
 
@@ -335,13 +337,13 @@ Press Ctrl+C to stop both services.
 
 | URL | 原文言語 | 翻訳先言語 | デフォルトの状態 |
 | --- | --- | --- | --- |
-| `http://127.0.0.1:8001/translate-auto?q=$q` | モデルが自動判定 | `TARGET_LANG` | 有効 |
-| `http://127.0.0.1:8001/translate?q=$q` | `SOURCE_LANG`（デフォルトは `ja`） | `TARGET_LANG` | 無効 |
+| `http://127.0.0.1:8001/translate-X?q=$q` | モデルが自動判定 | `TARGET_LANG` | 有効 |
+| `http://127.0.0.1:8001/translate?q=$q` | モデルが自動判定 | `TARGET_LANG` | 無効 |
 
 別のターミナルから動作確認ができます（`curl.exe` がテキストを URL のクエリパラメーター用に自動エンコードします）。
 
 ```bat
-curl.exe --noproxy "*" -G "http://127.0.0.1:8001/translate-auto" --data-urlencode "q=Hello, world!"
+curl.exe --noproxy "*" -G "http://127.0.0.1:8001/translate-X" --data-urlencode "q=Hello, world!"
 ```
 
 サービスが正常に動作していれば、以下のような JSON が返ります（翻訳文はモデルや設定によって異なります）。
@@ -363,12 +365,12 @@ X のページを開き、ユーザースクリプトマネージャーから **
 | Enable external translator (fallback to Google Translate) | オン |
 | Use PLaMo (apply source-language whitelist) | オン |
 | Request Method | GET |
-| Translation endpoint URL | `http://127.0.0.1:8001/translate-auto?q=$q` |
+| Translation endpoint URL | `http://127.0.0.1:8001/translate-X?q=$q` |
 | Response Style | Google Translate |
 
 `Save` をクリックするとページが自動的に再読み込みされ、ポストや自己紹介文の翻訳にローカルの PLaMo が優先的に使用されるようになります。`Set translation language` の設定が Python の `TARGET_LANG` と一致していることも確認してください。
 
-ここで URL を `/translate` にしないでください。このエンドポイントは原文言語を固定したライブ配信チャットの翻訳用であり、デフォルトでは無効です。
+ここで URL を `/translate` にしないでください。このエンドポイントはライブ配信チャットの翻訳用であり、デフォルトでは無効です。
 
 ### トラブルシューティング
 
@@ -381,7 +383,7 @@ X のページを開き、ユーザースクリプトマネージャーから **
 | ブラウザで接続権限のエラーが出る | ユーザースクリプトマネージャーでローカルアドレスへのアクセスが許可されているか、Python サービスが起動しているか確認 |
 | 依然として Google 翻訳が使用される | 外部翻訳が有効か、URL が正しいか、原文言語がホワイトリストの条件を満たすか確認。Python のログとブラウザ開発者ツールのフォールバック警告も確認 |
 | 意図しない言語に翻訳される | Python の `TARGET_LANG` を変更して再起動し、X Translate の翻訳先言語も調整 |
-| `/translate` が 404 を返す | このエンドポイントはデフォルトで無効。利用する場合は `ENABLE_TRANSLATE = True` に設定して再起動 |
+| `/translate` が 404 を返す | このエンドポイントはデフォルトで無効。利用する場合は `ENABLE_FLUSHER = True` に設定して再起動 |
 
 ブリッジサービスはデフォルトでローカルの `127.0.0.1` のみで待ち受けます。API キーによる認証はなく、クロスオリジンアクセスを許可しています。ローカルアドレスでの待ち受けを維持し、LAN やインターネットへ直接公開しないことを推奨します。GET リクエストのテキストがローカルの HTTP アクセスログに記録される場合もあります。
 
@@ -389,15 +391,13 @@ X のページを開き、ユーザースクリプトマネージャーから **
 
 同じ `plamo_flusher_bridge.py` を [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher)（YouTube Live のチャットを弾幕形式で表示するブラウザ拡張機能）にも直接接続できます。別のモデルインスタンスを起動する必要はありません。
 
-まず、Python スクリプトで原文言語固定のエンドポイントを有効にします。
+まず、Python スクリプトで Flusher 用エンドポイントを有効にします。
 
 ```python
-ENABLE_TRANSLATE = True
-SOURCE_LANG = "ja"
-TARGET_LANG = "zh-hant"
+ENABLE_FLUSHER = True
 ```
 
-保存後、`plamo_flusher_bridge.py` を再実行してください。`SOURCE_LANG` はデフォルトで日本語に固定されているため、日本語のライブ配信コメントに適しています。`TARGET_LANG` は必要に応じて変更できますが、両エンドポイントは同じ翻訳先言語を共有します。
+保存後、`plamo_flusher_bridge.py` を再実行してください。`TARGET_LANG` は必要に応じて変更できますが、両エンドポイントは同じ翻訳先言語を共有します。
 
 YoutubeLiveChatFlusher の **Translator** 設定で **External service** を選択し、翻訳を有効にして以下のように設定します。
 
@@ -407,7 +407,7 @@ YoutubeLiveChatFlusher の **Translator** 設定で **External service** を選�
 | URL | `http://127.0.0.1:8001/translate?q=$q` |
 | Response Style | Google Translate |
 
-両プロジェクトは同時に動作させることができます。X Translate は `/translate-auto` で原文言語を自動判定し、YoutubeLiveChatFlusher は `/translate` で原文言語を固定し、ライブ配信コメント専用のコンテキストを使用します。両者は同じ PLaMo モデルと用語集を共有します。X Translate のみを使用する場合は、`ENABLE_TRANSLATE = False` のままで構いません。
+両プロジェクトは同時に動作させることができます。X Translate と YoutubeLiveChatFlusher は同じ PLaMo モデルと用語集を共有し、異なるのは URL とコンテキストのみです。X Translate のみを使用する場合は、`ENABLE_FLUSHER = False` のままで構いません。
 
 ## License
 

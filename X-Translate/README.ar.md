@@ -74,7 +74,7 @@
 | Enable external translator (fallback to Google Translate) | معطّل | يعطي الأولوية للخدمة الخارجية ويرجع إلى Google Translate إذا فشلت |
 | Use PLaMo (apply source-language whitelist) | مفعّل | يطبق قائمة لغات PLaMo المصدر المسموح بها على المنشورات؛ يُعطّل عادةً عند التكامل مع خدمات أخرى |
 | Request Method | GET | يدعم GET وPOST |
-| Translation endpoint URL | `http://127.0.0.1:8001/translate-auto?q=$q` | عنوان API لخدمة الترجمة الخارجية |
+| Translation endpoint URL | `http://127.0.0.1:8001/translate-X?q=$q` | عنوان API لخدمة الترجمة الخارجية |
 | Response Style | Google Translate | اختر التنسيق المطابق لاستجابة الخدمة الفعلية: Google Translate أو OpenAI |
 | API Type (لطلبات POST فقط) | OpenAI Compatible | يستخدم تنسيق طلب OpenAI المضمن أو Custom JSON |
 | API Key (لطلبات POST فقط، اختياري) | فارغ | إذا لم يكن فارغًا، يُرسل عبر `Authorization: Bearer ...` |
@@ -199,7 +199,7 @@ PLaMo 3 Translate نموذج متخصص في الترجمة طورته شركة 
 يتولى سكريبت Python تشغيل llama.cpp، وإنشاء تعليمات الترجمة (prompts) بتنسيق PFML3 الخاص بـ PLaMo، وتحويل استجابة النموذج إلى تنسيق متوافق مع Google Translate. ويمكن لعملية تشغيل واحدة للنموذج خدمة X Translate وYoutubeLiveChatFlusher في الوقت نفسه.
 
 ```text
-X Translate                GET /translate-auto
+X Translate                GET /translate-X
                                       |
                                       v
                            plamo_flusher_bridge.py :8001
@@ -268,9 +268,8 @@ TARGET_LANG = "en"
 | `LLAMA_HOST` / `LLAMA_PORT` | `127.0.0.1` / `8000` | عنوان الواجهة الخلفية llama-server |
 | `LLAMA_STARTUP_TIMEOUT` | `120` | مدة انتظار تحميل النموذج (بالثواني) |
 | `AUTO_CONTEXT` | سياق منشورات X | تعليمات السياق المستخدمة مع X Translate |
-| `ENABLE_TRANSLATE` | `False` | تحديد ما إذا كانت نقطة نهاية التكامل مع [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) مفعّلة أيضًا |
-| `CONTEXT` | سياق تعليقات جمهور البث المباشر لليوتيوبرز الافتراضيين (VTubers) اليابانيين | تعليمات السياق المستخدمة عند التكامل مع [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) |
-| `SOURCE_LANG` | `ja` | اللغة المصدر الثابتة للتكامل مع [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher)؛ لا تؤثر على X Translate |
+| `ENABLE_FLUSHER` | `False` | تحديد ما إذا كانت نقطة نهاية التكامل مع [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) مفعّلة أيضًا |
+| `CONTEXT` | سياق تعليقات جمهور البث المباشر الياباني | تعليمات السياق المستخدمة عند التكامل مع [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) |
 
 إذا كنت مهتمًا بعرض تعليقات YouTube فوق الفيديو وترجمتها، فراجع قسم [التكامل مع YoutubeLiveChatFlusher](#التكامل-مع-youtubelivechatflusher).
 
@@ -303,7 +302,7 @@ TARGET_LANG = "en"
 
 يقرأ سكريبت الربط المسرد عند كل عملية ترجمة، ولا يضيف إلى تعليمات PFML3 إلا المصطلحات المطابقة فعلًا للنص الأصلي. وعند تداخل المطابقات، يعطي الأولوية للمصطلح الأطول، ولا يضيف المصطلح نفسه أكثر من مرة. وتشترك نقطتا النهاية في هذا الملف.
 
-- **يمكن تشغيل السكريبت بصورة طبيعية دون ملف `glossary.json`**، بما في ذلك عند استخدام `/translate-auto` فقط.
+- **يمكن تشغيل السكريبت بصورة طبيعية دون ملف `glossary.json`**، بما في ذلك عند استخدام `/translate-X` فقط.
 - بعد تعديل الملف، يُقرأ المحتوى الجديد عند الترجمة التالية دون الحاجة إلى إعادة تشغيل خدمة الربط.
 - يجب أن يكون الملف مصفوفة JSON تتضمن عناصر تحتوي على السلسلتين النصيتين غير الفارغتين `source` و`target`. يؤدي JSON غير الصالح أو عدم كون البنية العليا مصفوفة إلى فشل طلب الترجمة.
 - يُستخدم المسرد ضمن تعليمات النموذج، وليس كآلية استبدال نصي إلزامية؛ لذلك لا يمكن ضمان التزام النموذج بالترجمات المحددة في جميع السياقات.
@@ -322,12 +321,15 @@ py plamo_flusher_bridge.py
 python plamo_flusher_bridge.py
 ```
 
-لا حاجة إلى تشغيل llama-server يدويًا مسبقًا. يشغّل سكريبت Python خدمة النموذج تلقائيًا، ويتحقق من `/health`، ويبدأ معالجة طلبات الترجمة بعد أن يصبح النموذج جاهزًا. يتضمن سجل التشغيل الافتراضي معلومات شبيهة بما يلي:
+لا حاجة إلى تشغيل llama-server يدويًا مسبقًا. يشغّل سكريبت Python خدمة النموذج تلقائيًا، ويتحقق من `/health`، ويبدأ معالجة طلبات الترجمة بعد أن يصبح النموذج جاهزًا. يتضمن سجل التشغيل الافتراضي المعلومات التالية:
 
 ```text
 PLaMo model ready (HTTP /health 200).
-Japanese endpoint (/translate) is disabled.
-Auto -> zh-hant:     http://127.0.0.1:8001/translate-auto?q=$q
+Flusher endpoint (/translate) is disabled.
+Auto (X posts) -> zh-hant: http://127.0.0.1:8001/translate-X?q=$q
+Backend: http://127.0.0.1:8000/v1/completions  model=plamo-3-translate
+Request sl/tl parameters are ignored by both endpoints.
+Glossary file: F:\_repositories\comprehension\X-Translate\glossary.json
 Press Ctrl+C to stop both services.
 ```
 
@@ -335,13 +337,13 @@ Press Ctrl+C to stop both services.
 
 | URL | اللغة المصدر | اللغة الهدف | الحالة الافتراضية |
 | --- | --- | --- | --- |
-| `http://127.0.0.1:8001/translate-auto?q=$q` | يتعرف عليها النموذج تلقائيًا | `TARGET_LANG` | مفعّل |
-| `http://127.0.0.1:8001/translate?q=$q` | `SOURCE_LANG` (افتراضيًا `ja`) | `TARGET_LANG` | معطّل |
+| `http://127.0.0.1:8001/translate-X?q=$q` | يتعرف عليها النموذج تلقائيًا | `TARGET_LANG` | مفعّل |
+| `http://127.0.0.1:8001/translate?q=$q` | يتعرف عليها النموذج تلقائيًا | `TARGET_LANG` | معطّل |
 
 يمكن إجراء اختبار في نافذة طرفية أخرى (يرمّز `curl.exe` النص تلقائيًا بوصفه معامل استعلام في عنوان URL):
 
 ```bat
-curl.exe --noproxy "*" -G "http://127.0.0.1:8001/translate-auto" --data-urlencode "q=Hello, world!"
+curl.exe --noproxy "*" -G "http://127.0.0.1:8001/translate-X" --data-urlencode "q=Hello, world!"
 ```
 
 إذا كانت الخدمة تعمل بصورة صحيحة، فسترجع JSON مشابهًا لما يلي (تختلف الترجمة حسب النموذج والإعدادات):
@@ -363,12 +365,12 @@ curl.exe --noproxy "*" -G "http://127.0.0.1:8001/translate-auto" --data-urlencod
 | Enable external translator (fallback to Google Translate) | مفعّل |
 | Use PLaMo (apply source-language whitelist) | مفعّل |
 | Request Method | GET |
-| Translation endpoint URL | `http://127.0.0.1:8001/translate-auto?q=$q` |
+| Translation endpoint URL | `http://127.0.0.1:8001/translate-X?q=$q` |
 | Response Style | Google Translate |
 
 انقر على `Save`. بعد إعادة تحميل الصفحة تلقائيًا، ستُعطى الأولوية لنموذج PLaMo المحلي لترجمة المنشورات والنبذات الشخصية. تأكد أيضًا من تطابق إعداد `Set translation language` مع `TARGET_LANG` في Python.
 
-لا تستخدم `/translate` في عنوان URL هنا؛ فنقطة النهاية هذه مخصصة لترجمة محادثات البث المباشر بلغة مصدر ثابتة، وهي معطّلة افتراضيًا.
+لا تستخدم `/translate` في عنوان URL هنا؛ فنقطة النهاية هذه مخصصة لترجمة محادثات البث المباشر، وهي معطّلة افتراضيًا.
 
 ### الأسئلة الشائعة
 
@@ -381,7 +383,7 @@ curl.exe --noproxy "*" -G "http://127.0.0.1:8001/translate-auto" --data-urlencod
 | يعرض المتصفح مشكلة في أذونات الاتصال | تحقق من سماح مدير سكريبتات المستخدم بالوصول إلى العناوين المحلية، ومن أن خدمة Python قيد التشغيل |
 | لا يزال Google Translate مستخدمًا | تأكد من تفعيل الترجمة الخارجية وصحة عنوان URL ووجود اللغة المصدر في القائمة المسموح بها؛ وراجع سجل Python وتحذيرات الرجوع إلى الخدمة البديلة في أدوات المطور بالمتصفح |
 | الترجمة بلغة هدف غير صحيحة | عدّل `TARGET_LANG` في Python وأعد تشغيل السكريبت، واضبط اللغة الهدف في X Translate أيضًا |
-| تُرجع `/translate` رمز الحالة 404 | نقطة النهاية هذه معطّلة افتراضيًا؛ لاستخدامها اضبط `ENABLE_TRANSLATE = True` وأعد تشغيل السكريبت |
+| تُرجع `/translate` رمز الحالة 404 | نقطة النهاية هذه معطّلة افتراضيًا؛ لاستخدامها اضبط `ENABLE_FLUSHER = True` وأعد تشغيل السكريبت |
 
 تستمع خدمة الربط افتراضيًا إلى العنوان المحلي `127.0.0.1` فقط، ولا تستخدم المصادقة بمفتاح API، وتسمح بالوصول عبر الأصول المختلفة. يُنصح بالإبقاء على عنوان الاستماع المحلي وعدم إتاحة الخدمة مباشرةً على الشبكة المحلية أو الإنترنت. وقد يظهر نص طلبات GET أيضًا في سجلات الوصول المحلية الخاصة بـ HTTP.
 
@@ -389,15 +391,13 @@ curl.exe --noproxy "*" -G "http://127.0.0.1:8001/translate-auto" --data-urlencod
 
 يمكن أيضًا ربط السكريبت نفسه `plamo_flusher_bridge.py` مباشرةً مع [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) (إضافة متصفح لعرض تعليقات YouTube Live فوق الفيديو)، دون الحاجة إلى تشغيل نسخة ثانية من النموذج.
 
-أولًا، فعّل نقطة النهاية ذات اللغة المصدر الثابتة في سكريبت Python:
+أولًا، فعّل نقطة نهاية Flusher في سكريبت Python:
 
 ```python
-ENABLE_TRANSLATE = True
-SOURCE_LANG = "ja"
-TARGET_LANG = "zh-hant"
+ENABLE_FLUSHER = True
 ```
 
-احفظ التغييرات وأعد تشغيل `plamo_flusher_bridge.py`. القيمة الافتراضية الثابتة لـ `SOURCE_LANG` هي اليابانية، وهي مناسبة لتعليقات البث المباشر باللغة اليابانية. يمكنك تعديل `TARGET_LANG` وفقًا لاحتياجاتك، لكن نقطتي النهاية تشتركان في اللغة الهدف نفسها.
+احفظ التغييرات وأعد تشغيل `plamo_flusher_bridge.py`. يمكنك تعديل `TARGET_LANG` وفقًا لاحتياجاتك، لكن نقطتي النهاية تشتركان في اللغة الهدف نفسها.
 
 في إعدادات **Translator** في YoutubeLiveChatFlusher، اختر **External service**، وفعّل الترجمة واضبط الإعدادات كما يلي:
 
@@ -407,7 +407,7 @@ TARGET_LANG = "zh-hant"
 | URL | `http://127.0.0.1:8001/translate?q=$q` |
 | Response Style | Google Translate |
 
-يمكن تشغيل المشروعين في الوقت نفسه: يستخدم X Translate المسار `/translate-auto` للكشف التلقائي عن اللغة المصدر، بينما يستخدم YoutubeLiveChatFlusher المسار `/translate` بلغة مصدر ثابتة وسياق مستقل لتعليقات البث المباشر. ويشتركان في نموذج PLaMo ومسرد المصطلحات نفسيهما. إذا كنت تستخدم X Translate فقط، فأبقِ `ENABLE_TRANSLATE = False`.
+يمكن تشغيل المشروعين في الوقت نفسه: يشترك X Translate وYoutubeLiveChatFlusher في نموذج PLaMo ومسرد المصطلحات نفسيهما، ولا يختلفان إلا في عنوان URL والسياق. إذا كنت تستخدم X Translate فقط، فأبقِ `ENABLE_FLUSHER = False`.
 
 ## License
 

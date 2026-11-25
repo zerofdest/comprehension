@@ -46,7 +46,7 @@
     return element?.matches(BIO_SELECTOR) === true;
   }
 
-  const PLAMO_DEFAULT_URL = "http://127.0.0.1:8001/translate-auto?q=$q";
+  const PLAMO_DEFAULT_URL = "http://127.0.0.1:8001/translate-X?q=$q";
   const EXTERNAL_TIMEOUT_MS = 60000;
   const DEFAULT_TRANSLATOR = Object.freeze({
     enabled: false,
@@ -81,7 +81,7 @@
   ]);
 
   function isPlamoSupportedSource(element) {
-    // The /translate-auto adapter detects the language of bios itself.
+    // The /translate-X adapter detects the language of bios itself.
     // Keep the explicit source-language restriction for posts.
     if (isProfileBio(element)) return true;
     const raw = element?.getAttribute("lang")?.trim().replace(/_/g, "-").toLowerCase();

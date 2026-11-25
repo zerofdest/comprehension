@@ -74,7 +74,7 @@
 | Enable external translator (fallback to Google Translate) | 關閉 | 啟用後優先呼叫外部服務；失敗時回退至 Google Translate |
 | Use PLaMo (apply source-language whitelist) | 開啟 | 對貼文套用 PLaMo 來源語言白名單；串接其他服務時通常關閉 |
 | Request Method | GET | 支援 GET 和 POST |
-| Translation endpoint URL | `http://127.0.0.1:8001/translate-auto?q=$q` | 外部翻譯 API 位址 |
+| Translation endpoint URL | `http://127.0.0.1:8001/translate-X?q=$q` | 外部翻譯 API 位址 |
 | Response Style | Google Translate | 選擇與服務實際回傳格式一致的選項：Google Translate 或 OpenAI |
 | API Type（僅 POST） | OpenAI Compatible | 使用內建 OpenAI 請求格式或 Custom JSON |
 | API Key（僅 POST，可選） | 空 | 非空時以 `Authorization: Bearer ...` 傳送 |
@@ -199,7 +199,7 @@ PLaMo 3 Translate 是 Preferred Networks（PFN）開發的專用翻譯模型，�
 該 Python 腳本負責啟動 llama.cpp、建立 PLaMo 的 PFML3 翻譯提示詞，並將模型回應轉換為 Google Translate 相容格式。一個模型程序即可同時服務 X Translate 和 YoutubeLiveChatFlusher。
 
 ```text
-X Translate                GET /translate-auto
+X Translate                GET /translate-X
                                       |
                                       v
                            plamo_flusher_bridge.py :8001
@@ -268,9 +268,8 @@ TARGET_LANG = "en"
 | `LLAMA_HOST` / `LLAMA_PORT` | `127.0.0.1` / `8000` | llama-server 後端位址 |
 | `LLAMA_STARTUP_TIMEOUT` | `120` | 等待模型載入的時間（秒） |
 | `AUTO_CONTEXT` | X 貼文情境 | 針對X-translate使用的上下文提示 |
-| `ENABLE_TRANSLATE` | `False` | 是否同時啟用接入[YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher)的端點 |
-| `CONTEXT` | 日本 VTuber 直播觀眾留言情境 | 接入[YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher)時使用的上下文提示 |
-| `SOURCE_LANG` | `ja` | 接入[YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher)的固定來源語言，不影響X-translate |
+| `ENABLE_FLUSHER` | `False` | 是否同時啟用接入[YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher)的端點 |
+| `CONTEXT` | 日本實況直播觀眾留言情境 | 接入[YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher)時使用的上下文提示 |
 
 對YouTube彈幕化及翻譯感興趣的參見[接入 YoutubeLiveChatFlusher](#接入-YoutubeLiveChatFlusher)
 
@@ -303,7 +302,7 @@ TARGET_LANG = "en"
 
 橋接腳本會在每次翻譯時讀取術語表，僅將原文中實際符合的術語加入 PFML3 提示詞；重疊比對時優先使用較長的術語，同一術語僅加入一次。兩個端點共用此檔案。
 
-- **沒有 `glossary.json` 也可正常執行**，包括僅使用 `/translate-auto` 的情況。
+- **沒有 `glossary.json` 也可正常執行**，包括僅使用 `/translate-X` 的情況。
 - 修改檔案後，下次翻譯即可讀取新內容，不需重新啟動橋接服務。
 - 檔案應為 JSON 陣列，項目包含非空的 `source` 和 `target` 字串。無效 JSON 或最上層結構不是陣列會導致翻譯請求失敗。
 - 術語表作為模型提示，而非強制字串替換，不能保證模型在所有情境下都嚴格採用指定譯名。
@@ -322,12 +321,15 @@ py plamo_flusher_bridge.py
 python plamo_flusher_bridge.py
 ```
 
-不需要事先手動啟動 llama-server。Python 腳本會自行啟動模型服務，檢查 `/health`，在模型就緒後開始處理翻譯請求。預設記錄包含類似資訊：
+不需要事先手動啟動 llama-server。Python 腳本會自行啟動模型服務，檢查 `/health`，在模型就緒後開始處理翻譯請求。預設記錄包含以下資訊：
 
 ```text
 PLaMo model ready (HTTP /health 200).
-Japanese endpoint (/translate) is disabled.
-Auto -> zh-hant:     http://127.0.0.1:8001/translate-auto?q=$q
+Flusher endpoint (/translate) is disabled.
+Auto (X posts) -> zh-hant: http://127.0.0.1:8001/translate-X?q=$q
+Backend: http://127.0.0.1:8000/v1/completions  model=plamo-3-translate
+Request sl/tl parameters are ignored by both endpoints.
+Glossary file: F:\_repositories\comprehension\X-Translate\glossary.json
 Press Ctrl+C to stop both services.
 ```
 
@@ -335,13 +337,13 @@ Press Ctrl+C to stop both services.
 
 | URL | 來源語言 | 目標語言 | 預設狀態 |
 | --- | --- | --- | --- |
-| `http://127.0.0.1:8001/translate-auto?q=$q` | 模型自動辨識 | `TARGET_LANG` | 啟用 |
-| `http://127.0.0.1:8001/translate?q=$q` | `SOURCE_LANG`（預設 `ja`） | `TARGET_LANG` | 停用 |
+| `http://127.0.0.1:8001/translate-X?q=$q` | 模型自動辨識 | `TARGET_LANG` | 啟用 |
+| `http://127.0.0.1:8001/translate?q=$q` | 模型自動辨識 | `TARGET_LANG` | 停用 |
 
 可在另一個終端機測試（`curl.exe` 會將文字自動編碼為 URL 查詢參數）：
 
 ```bat
-curl.exe --noproxy "*" -G "http://127.0.0.1:8001/translate-auto" --data-urlencode "q=Hello, world!"
+curl.exe --noproxy "*" -G "http://127.0.0.1:8001/translate-X" --data-urlencode "q=Hello, world!"
 ```
 
 如果服務正常，將回傳類似以下 JSON（譯文因模型及設定而異）：
@@ -363,12 +365,12 @@ curl.exe --noproxy "*" -G "http://127.0.0.1:8001/translate-auto" --data-urlencod
 | Enable external translator (fallback to Google Translate) | 開啟 |
 | Use PLaMo (apply source-language whitelist) | 開啟 |
 | Request Method | GET |
-| Translation endpoint URL | `http://127.0.0.1:8001/translate-auto?q=$q` |
+| Translation endpoint URL | `http://127.0.0.1:8001/translate-X?q=$q` |
 | Response Style | Google Translate |
 
 點選 `Save`，頁面自動重新整理後，即可優先使用本機 PLaMo 翻譯貼文及個人簡介。請同時確認 `Set translation language` 與 Python 的 `TARGET_LANG` 一致。
 
-不要將此處的 URL 填成 `/translate`：後者是為固定來源語言的直播聊天室翻譯設計的介面，且預設停用。
+不要將此處的 URL 填成 `/translate`：後者是為直播聊天室翻譯設計的介面，且預設停用。
 
 ### 常見問題
 
@@ -381,7 +383,7 @@ curl.exe --noproxy "*" -G "http://127.0.0.1:8001/translate-auto" --data-urlencod
 | 瀏覽器提示連線權限問題 | 檢查 Userscript 管理員是否允許存取本機位址，並確認 Python 服務已啟動 |
 | 仍在使用 Google Translate | 確認已啟用外部翻譯、URL 正確、來源語言符合白名單；檢查 Python 記錄及瀏覽器開發人員工具中的回退警告 |
 | 翻譯為錯誤的目標語言 | 修改 Python 的 `TARGET_LANG` 並重新啟動，同時調整 X Translate 的目標語言 |
-| `/translate` 回傳 404 | 該端點預設關閉；如需使用，請設定 `ENABLE_TRANSLATE = True` 並重新啟動 |
+| `/translate` 回傳 404 | 該端點預設關閉；如需使用，請設定 `ENABLE_FLUSHER = True` 並重新啟動 |
 
 橋接服務預設僅監聽本機 `127.0.0.1`，沒有 API Key 驗證，且允許跨來源存取。建議保留本機監聽位址，不要直接公開至區域網路或網際網路。GET 請求文字也可能出現在本機 HTTP 存取記錄中。
 
@@ -389,15 +391,13 @@ curl.exe --noproxy "*" -G "http://127.0.0.1:8001/translate-auto" --data-urlencod
 
 同一個 `plamo_flusher_bridge.py` 也可以直接串接 [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher)（YouTube Live 彈幕瀏覽器擴充功能），不需額外啟動第二個模型執行個體。
 
-首先，在 Python 腳本中開啟固定來源語言端點：
+首先，在 Python 腳本中開啟Flusher端點：
 
 ```python
-ENABLE_TRANSLATE = True
-SOURCE_LANG = "ja"
-TARGET_LANG = "zh-hant"
+ENABLE_FLUSHER = True
 ```
 
-儲存後重新執行 `plamo_flusher_bridge.py`。`SOURCE_LANG` 預設固定為日文，適用於日文直播留言；`TARGET_LANG` 可依需求修改，但兩個端點共用同一個目標語言。
+儲存後重新執行 `plamo_flusher_bridge.py`。`TARGET_LANG` 可依需求修改，但兩個端點共用同一個目標語言。
 
 在 YoutubeLiveChatFlusher 的 **Translator** 設定中選擇 **External service**，啟用翻譯並設定如下：
 
@@ -407,7 +407,7 @@ TARGET_LANG = "zh-hant"
 | URL | `http://127.0.0.1:8001/translate?q=$q` |
 | Response Style | Google Translate |
 
-兩個專案可以同時執行：X Translate 使用 `/translate-auto` 自動辨識來源語言，YoutubeLiveChatFlusher 使用 `/translate` 固定來源語言並採用獨立的直播留言上下文，兩者共用同一個 PLaMo 模型及術語表。若只使用 X Translate，保持 `ENABLE_TRANSLATE = False` 即可。
+兩個專案可以同時執行：X Translate 與 YoutubeLiveChatFlusher 共用同一個 PLaMo 模型及術語表，差異只在於URL 與 context。若只使用 X Translate，保持 `ENABLE_FLUSHER = False` 即可。
 
 ## License
 

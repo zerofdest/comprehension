@@ -74,7 +74,7 @@ Selecciona **Translator settings** en el menú de X Translate del gestor de scri
 | Enable external translator (fallback to Google Translate) | Desactivado | Da prioridad al servicio externo y recurre a Google Translate si falla |
 | Use PLaMo (apply source-language whitelist) | Activado | Aplica a las publicaciones la lista de idiomas de origen permitidos de PLaMo; normalmente se desactiva al integrar otros servicios |
 | Request Method | GET | Admite GET y POST |
-| Translation endpoint URL | `http://127.0.0.1:8001/translate-auto?q=$q` | Dirección de la API de traducción externa |
+| Translation endpoint URL | `http://127.0.0.1:8001/translate-X?q=$q` | Dirección de la API de traducción externa |
 | Response Style | Google Translate | Selecciona el formato real de respuesta del servicio: Google Translate u OpenAI |
 | API Type (solo POST) | OpenAI Compatible | Utiliza el formato de solicitud integrado de OpenAI o Custom JSON |
 | API Key (solo POST, opcional) | Vacío | Si no está vacío, se envía mediante `Authorization: Bearer ...` |
@@ -199,7 +199,7 @@ PLaMo 3 Translate es un modelo especializado en traducción desarrollado por Pre
 El script de Python se encarga de iniciar llama.cpp, construir los prompts de traducción PFML3 de PLaMo y convertir la respuesta del modelo a un formato compatible con Google Translate. Un único proceso del modelo puede prestar servicio a X Translate y YoutubeLiveChatFlusher simultáneamente.
 
 ```text
-X Translate                GET /translate-auto
+X Translate                GET /translate-X
                                       |
                                       v
                            plamo_flusher_bridge.py :8001
@@ -268,9 +268,8 @@ Otros parámetros opcionales:
 | `LLAMA_HOST` / `LLAMA_PORT` | `127.0.0.1` / `8000` | Dirección del backend llama-server |
 | `LLAMA_STARTUP_TIMEOUT` | `120` | Tiempo de espera para la carga del modelo (segundos) |
 | `AUTO_CONTEXT` | Contexto de publicaciones de X | Prompt de contexto para X Translate |
-| `ENABLE_TRANSLATE` | `False` | Habilita también el endpoint para integrar [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) |
-| `CONTEXT` | Contexto de comentarios del público en directos de VTubers japoneses | Prompt de contexto para la integración con [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) |
-| `SOURCE_LANG` | `ja` | Idioma de origen fijo para [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher); no afecta a X Translate |
+| `ENABLE_FLUSHER` | `False` | Habilita también el endpoint para integrar [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) |
+| `CONTEXT` | Contexto de comentarios del público en directos japoneses | Prompt de contexto para la integración con [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) |
 
 Si te interesa mostrar los comentarios de YouTube superpuestos al vídeo y traducirlos, consulta [Integración con YoutubeLiveChatFlusher](#integración-con-youtubelivechatflusher).
 
@@ -303,7 +302,7 @@ Crea un archivo `glossary.json` con codificación UTF-8 en el mismo directorio q
 
 El script puente lee el glosario en cada traducción y solo añade al prompt PFML3 los términos que realmente coinciden con el texto original. Si hay coincidencias solapadas, da prioridad a los términos más largos y añade cada término una sola vez. Ambos endpoints comparten este archivo.
 
-- **El script funciona correctamente sin `glossary.json`**, incluso si solo utilizas `/translate-auto`.
+- **El script funciona correctamente sin `glossary.json`**, incluso si solo utilizas `/translate-X`.
 - Los cambios del archivo se leen en la siguiente traducción, sin reiniciar el servicio puente.
 - El archivo debe ser una matriz JSON con elementos que contengan las cadenas no vacías `source` y `target`. Un JSON no válido o cuya estructura de nivel superior no sea una matriz provocará un fallo en la solicitud de traducción.
 - El glosario se utiliza como prompt del modelo, no como una sustitución obligatoria de cadenas. No garantiza que el modelo emplee siempre las traducciones especificadas en todos los contextos.
@@ -322,12 +321,15 @@ Si utilizas el comando `python`:
 python plamo_flusher_bridge.py
 ```
 
-No es necesario iniciar llama-server manualmente de antemano. El script de Python inicia el servicio del modelo, comprueba `/health` y comienza a procesar las solicitudes de traducción cuando el modelo está listo. El registro predeterminado contiene información similar a la siguiente:
+No es necesario iniciar llama-server manualmente de antemano. El script de Python inicia el servicio del modelo, comprueba `/health` y comienza a procesar las solicitudes de traducción cuando el modelo está listo. El registro predeterminado contiene la siguiente información:
 
 ```text
 PLaMo model ready (HTTP /health 200).
-Japanese endpoint (/translate) is disabled.
-Auto -> zh-hant:     http://127.0.0.1:8001/translate-auto?q=$q
+Flusher endpoint (/translate) is disabled.
+Auto (X posts) -> zh-hant: http://127.0.0.1:8001/translate-X?q=$q
+Backend: http://127.0.0.1:8000/v1/completions  model=plamo-3-translate
+Request sl/tl parameters are ignored by both endpoints.
+Glossary file: F:\_repositories\comprehension\X-Translate\glossary.json
 Press Ctrl+C to stop both services.
 ```
 
@@ -335,13 +337,13 @@ Se proporcionan dos rutas de API por defecto:
 
 | URL | Idioma de origen | Idioma de destino | Estado predeterminado |
 | --- | --- | --- | --- |
-| `http://127.0.0.1:8001/translate-auto?q=$q` | Detección automática por el modelo | `TARGET_LANG` | Activado |
-| `http://127.0.0.1:8001/translate?q=$q` | `SOURCE_LANG` (`ja` por defecto) | `TARGET_LANG` | Desactivado |
+| `http://127.0.0.1:8001/translate-X?q=$q` | Detección automática por el modelo | `TARGET_LANG` | Activado |
+| `http://127.0.0.1:8001/translate?q=$q` | Detección automática por el modelo | `TARGET_LANG` | Desactivado |
 
 Puedes realizar una prueba en otra terminal (`curl.exe` codifica automáticamente el texto como parámetro de consulta de la URL):
 
 ```bat
-curl.exe --noproxy "*" -G "http://127.0.0.1:8001/translate-auto" --data-urlencode "q=Hello, world!"
+curl.exe --noproxy "*" -G "http://127.0.0.1:8001/translate-X" --data-urlencode "q=Hello, world!"
 ```
 
 Si el servicio funciona correctamente, devolverá un JSON similar al siguiente (la traducción depende del modelo y de la configuración):
@@ -363,12 +365,12 @@ Abre X, entra en **Translator settings** desde el gestor de scripts de usuario y
 | Enable external translator (fallback to Google Translate) | Activado |
 | Use PLaMo (apply source-language whitelist) | Activado |
 | Request Method | GET |
-| Translation endpoint URL | `http://127.0.0.1:8001/translate-auto?q=$q` |
+| Translation endpoint URL | `http://127.0.0.1:8001/translate-X?q=$q` |
 | Response Style | Google Translate |
 
 Pulsa `Save`. Tras la recarga automática de la página, PLaMo local tendrá prioridad para traducir las publicaciones y biografías. Comprueba también que `Set translation language` coincida con `TARGET_LANG` en Python.
 
-No utilices `/translate` en esta URL: ese endpoint está diseñado para traducir chats en directo con un idioma de origen fijo y está desactivado por defecto.
+No utilices `/translate` como URL aquí: este endpoint está diseñado para traducir chats de directos y está desactivado por defecto.
 
 ### Preguntas frecuentes
 
@@ -381,7 +383,7 @@ No utilices `/translate` en esta URL: ese endpoint está diseñado para traducir
 | El navegador indica un problema de permisos de conexión | Comprueba si el gestor de scripts de usuario permite el acceso a direcciones locales y si el servicio de Python está en ejecución |
 | Se sigue utilizando Google Translate | Comprueba que la traducción externa esté habilitada, que la URL sea correcta y que el idioma de origen figure en la lista permitida. Revisa el registro de Python y los avisos de uso de la alternativa en las herramientas de desarrollo del navegador |
 | La traducción aparece en un idioma de destino incorrecto | Modifica `TARGET_LANG` en Python, reinicia el script y ajusta también el idioma de destino de X Translate |
-| `/translate` devuelve 404 | Este endpoint está desactivado por defecto; para utilizarlo, establece `ENABLE_TRANSLATE = True` y reinicia el script |
+| `/translate` devuelve 404 | Este endpoint está desactivado por defecto; para utilizarlo, establece `ENABLE_FLUSHER = True` y reinicia el script |
 
 Por defecto, el servicio puente solo escucha en la dirección local `127.0.0.1`, no utiliza autenticación mediante clave de API y permite el acceso entre orígenes. Se recomienda conservar esta dirección de escucha local y no exponer directamente el servicio a la red local ni a Internet. El texto de las solicitudes GET también puede aparecer en los registros locales de acceso HTTP.
 
@@ -389,15 +391,13 @@ Por defecto, el servicio puente solo escucha en la dirección local `127.0.0.1`,
 
 El mismo `plamo_flusher_bridge.py` también se puede integrar directamente con [YoutubeLiveChatFlusher](https://github.com/ys-j/YoutubeLiveChatFlusher) (extensión de navegador que muestra los comentarios de YouTube Live superpuestos al vídeo), sin necesidad de iniciar una segunda instancia del modelo.
 
-Primero, habilita el endpoint de idioma de origen fijo en el script de Python:
+Primero, habilita el endpoint de Flusher en el script de Python:
 
 ```python
-ENABLE_TRANSLATE = True
-SOURCE_LANG = "ja"
-TARGET_LANG = "zh-hant"
+ENABLE_FLUSHER = True
 ```
 
-Guarda los cambios y vuelve a ejecutar `plamo_flusher_bridge.py`. `SOURCE_LANG` está fijado por defecto al japonés y es adecuado para comentarios de directos en japonés. Puedes cambiar `TARGET_LANG` según tus necesidades, pero ambos endpoints comparten el mismo idioma de destino.
+Guarda los cambios y vuelve a ejecutar `plamo_flusher_bridge.py`. Puedes cambiar `TARGET_LANG` según tus necesidades, pero ambos endpoints comparten el mismo idioma de destino.
 
 En la configuración **Translator** de YoutubeLiveChatFlusher, selecciona **External service**, habilita la traducción y configura lo siguiente:
 
@@ -407,7 +407,7 @@ En la configuración **Translator** de YoutubeLiveChatFlusher, selecciona **Exte
 | URL | `http://127.0.0.1:8001/translate?q=$q` |
 | Response Style | Google Translate |
 
-Ambos proyectos pueden ejecutarse simultáneamente: X Translate utiliza `/translate-auto` para detectar automáticamente el idioma de origen, mientras que YoutubeLiveChatFlusher utiliza `/translate` con un idioma de origen fijo y un contexto independiente para los comentarios de directos. Ambos comparten el mismo modelo PLaMo y el mismo glosario. Si solo utilizas X Translate, deja `ENABLE_TRANSLATE = False`.
+Ambos proyectos pueden ejecutarse simultáneamente: X Translate y YoutubeLiveChatFlusher comparten el mismo modelo PLaMo y el mismo glosario, y solo se diferencian en la URL y el contexto. Si solo utilizas X Translate, deja `ENABLE_FLUSHER = False`.
 
 ## License
 
