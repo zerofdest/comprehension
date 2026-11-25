@@ -3,10 +3,10 @@
 // @description  An automatic translation userscript for posts and profile bios on X (Twitter). It replaces X's lousy built-in Grok translations with Google Translate and also supports local translation models such as PLaMo 3 Translate, as well as other external translation services.
 // @name:ja         X 自動翻訳
 // @description:ja  X（Twitter）のポストやプロフィールの自己紹介文を自動翻訳するユーザースクリプトです。精度の低いX標準のGrok翻訳をGoogle翻訳に置き換え、PLaMo 3 Translateなどのローカル翻訳モデルや、その他の外部翻訳サービスにも対応しています。
-// @name:zh-Hant      X 自動翻譯
-// @description:zh-Hant  自動翻譯 X（Twitter）貼文及個人簡介的使用者腳本。以 Google 翻譯取代 X 內建的劣質 Grok 翻譯，並支援 PLaMo 3 Translate 等本機翻譯模型及其他外部翻譯服務。
-// @name:zh-Hans         X 自动翻译
-// @description:zh-Hans  自动翻译 X（Twitter）帖子及个人简介的用户脚本。使用 Google 翻译替代 X 内置的糟糕的 Grok 翻译，同时支持 PLaMo 3 Translate 等本地翻译模型及其他外部翻译服务。
+// @name:zh-TW      X 自動翻譯
+// @description:zh-TW  自動翻譯 X（Twitter）貼文及個人簡介的使用者腳本。以 Google 翻譯取代 X 內建的劣質 Grok 翻譯，並支援 PLaMo 3 Translate 等本機翻譯模型及其他外部翻譯服務。
+// @name:zh         X 自动翻译
+// @description:zh  自动翻译 X（Twitter）帖子及个人简介的用户脚本。使用 Google 翻译替代 X 内置的糟糕的 Grok 翻译，同时支持 PLaMo 3 Translate 等本地翻译模型及其他外部翻译服务。
 // @name:ar         الترجمة التلقائية لـ X
 // @description:ar  سكربت مستخدم للترجمة التلقائية للمنشورات والنبذات التعريفية على X (تويتر). يستبدل ترجمة Grok المدمجة والرديئة في X بترجمة Google، ويدعم أيضًا نماذج الترجمة المحلية مثل PLaMo 3 Translate، بالإضافة إلى خدمات الترجمة الخارجية الأخرى.
 // @name:es         X - Traducción automática
