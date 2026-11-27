@@ -61,12 +61,12 @@ LLAMA_SERVER_ARGS = [
     "--host", LLAMA_HOST,
     "--port", str(LLAMA_PORT),
     "--n-gpu-layers", "99",
-    "--ctx-size", "3072",
+    "--ctx-size", "2048",
+    "--n-predict", "256",
     "--parallel", "4",
     "--jinja",
     "--no-prefill-assistant",
-    "--temp", "0",
-    "--n-predict", "376"
+    "--temp", "0"
 ]
 
 GLOSSARY_PATH = Path(__file__).with_name("glossary.json")
@@ -240,6 +240,14 @@ def translate(text: str, context: str) -> str:
         result = json.load(response)
         print("Token usage:", result.get("usage"))
     translated = result["choices"][0]["text"].strip()
+
+    if not translated:
+        print(f"[EMPTY] {text!r}", flush=True)
+    elif translated == text:
+        print(f"[UNCHANGED] {text!r}", flush=True)
+    else:
+        print(f"[TRANSLATED] {text!r} -> {translated!r}", flush=True)
+
     return translated or text
 
 

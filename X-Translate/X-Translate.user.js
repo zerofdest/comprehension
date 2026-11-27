@@ -13,8 +13,6 @@
 // @description:es  Script de usuario que traduce automáticamente las publicaciones y las biografías de los perfiles de X (Twitter). Sustituye las deficientes traducciones de Grok integradas en X por las de Google Translate y también admite modelos de traducción locales como PLaMo 3 Translate, así como otros servicios de traducción externos.
 // @namespace    https://github.com/USERNAME/X-Translate
 // @supportURL   https://github.com/zerofdest/comprehension/issues
-// @updateURL    https://raw.githubusercontent.com/zerofdest/comprehension/main/X-Translate/X-Translate.user.js
-// @downloadURL  https://raw.githubusercontent.com/zerofdest/comprehension/main/X-Translate/X-Translate.user.js
 // @version      2.0.1
 // @match        https://x.com/*
 // @grant        GM_xmlhttpRequest
@@ -26,6 +24,8 @@
 // @connect      *
 // @license      MIT
 // @run-at       document-idle
+// @downloadURL https://update.greasyfork.org/scripts/607090/X%20Translate.user.js
+// @updateURL https://update.greasyfork.org/scripts/607090/X%20Translate.meta.js
 // ==/UserScript==
 
 (function () {
@@ -80,11 +80,15 @@
     "ur", "uz", "vi",
   ]);
 
+  function getRawLang(element) {
+    return element?.getAttribute("lang")?.trim().replace(/_/g, "-").toLowerCase();
+  }
+
   function isPlamoSupportedSource(element) {
     // The /translate-X adapter detects the language of bios itself.
     // Keep the explicit source-language restriction for posts.
     if (isProfileBio(element)) return true;
-    const raw = element?.getAttribute("lang")?.trim().replace(/_/g, "-").toLowerCase();
+    const raw = getRawLang(element);
     if (!raw) return false;
     if (raw === "zh" || raw.startsWith("zh-")) return true;
     const base = raw.split("-")[0];
@@ -100,7 +104,7 @@
   function getExternalSourceLang(element, sourceLang) {
     if (isProfileBio(element)) return "auto";
     if (sourceLang !== "auto") return sourceLang;
-    const raw = element?.getAttribute("lang")?.trim().replace(/_/g, "-").toLowerCase();
+    const raw = getRawLang(element);
     if (!raw || ["und", "zxx", "auto"].includes(raw) || !/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/i.test(raw)) return "auto";
     return raw;
   }
@@ -191,17 +195,19 @@
     ["cy","Welsh"],["zu","Zulu"],
   ];
 
+  const LANGUAGE_CODES = new Set(LANGUAGES.map(([code]) => code.toLowerCase()));
+
   function getSourceLang(element) {
     // User bios have no reliable X-provided language metadata.
     if (isProfileBio(element)) return "auto";
-    const raw = element?.getAttribute("lang")?.trim().replace(/_/g, "-").toLowerCase();
+    const raw = getRawLang(element);
     if (!raw) return "auto";
     if (raw === "zh" || /^zh-(?:cn|sg|hans)(?:-|$)/.test(raw)) return "zh";
     if (/^zh-(?:tw|hk|mo|hant)(?:-|$)/.test(raw)) return "zh-TW";
     const base = raw.split("-")[0];
     const aliases = { nb: "no", iw: "he", in: "id" };
     const code = aliases[base] || base;
-    return LANGUAGES.some(([lang]) => lang.toLowerCase() === code) ? code : "auto";
+    return LANGUAGE_CODES.has(code) ? code : "auto";
   }
 
   function shouldSkipTranslation(element) {
@@ -219,82 +225,58 @@
   skipStyle.textContent = '[data-xtranslate-skip="true"] { display: none !important; }';
   document.head.appendChild(skipStyle);
 
+  function ui(tag, css = "", props = {}, ...children) {
+    const element = document.createElement(tag);
+    if (css) element.style.cssText = css;
+    Object.assign(element, props);
+    element.append(...children);
+    return element;
+  }
+
+  function createDialog(id, title, layout) {
+    document.getElementById(id)?.remove();
+    const overlay = ui("div", "position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999999;display:flex;align-items:center;justify-content:center;", { id });
+    const dialog = ui("div", "background:#fff;border-radius:16px;padding:24px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#0f1419;box-shadow:0 8px 28px rgba(0,0,0,.25);" + layout,
+      {}, ui("div", "font-size:18px;font-weight:700;margin-bottom:16px;", { textContent: title }));
+    overlay.append(dialog);
+    overlay.addEventListener("click", event => { if (event.target === overlay) overlay.remove(); });
+    return { overlay, dialog };
+  }
+
+  function saveAndReload(key, value, overlay) {
+    GM_setValue(key, value);
+    overlay.remove();
+    location.reload();
+  }
+
   function showLanguagePicker() {
-    document.getElementById("gt-lang-picker")?.remove();
-
     const current = getTargetLang();
-
-    const overlay = document.createElement("div");
-    overlay.id = "gt-lang-picker";
-    overlay.style.cssText =
-      "position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999999;" +
-      "display:flex;align-items:center;justify-content:center;";
-
-    const dialog = document.createElement("div");
-    dialog.style.cssText =
-      "background:#fff;border-radius:16px;padding:24px;width:340px;max-height:80vh;" +
-      "display:flex;flex-direction:column;font-family:-apple-system,BlinkMacSystemFont,sans-serif;" +
-      "color:#0f1419;box-shadow:0 8px 28px rgba(0,0,0,0.25);";
-
-    const title = document.createElement("div");
-    title.textContent = "Translation Language";
-    title.style.cssText = "font-size:18px;font-weight:700;margin-bottom:16px;";
-
-    const search = document.createElement("input");
-    search.type = "text";
-    search.placeholder = "Search languages...";
-    search.style.cssText =
-      "width:100%;padding:10px 12px;border:1px solid #cfd9de;border-radius:8px;" +
-      "font-size:14px;outline:none;box-sizing:border-box;margin-bottom:12px;";
-
-    const list = document.createElement("div");
-    list.style.cssText = "overflow-y:auto;flex:1;max-height:50vh;";
+    const { overlay, dialog } = createDialog("gt-lang-picker", "Translation Language",
+      "width:340px;max-height:80vh;display:flex;flex-direction:column;");
+    const search = ui("input", "width:100%;padding:10px 12px;border:1px solid #cfd9de;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:12px;",
+      { type: "text", placeholder: "Search languages..." });
+    const list = ui("div", "overflow-y:auto;flex:1;max-height:50vh;");
 
     function renderList(filter = "") {
-      list.innerHTML = "";
+      list.replaceChildren();
       const lf = filter.toLowerCase();
       for (const [code, name] of LANGUAGES) {
         if (lf && !name.toLowerCase().includes(lf) && !code.includes(lf)) continue;
-
-        const item = document.createElement("div");
-        item.textContent = `${name} (${code})`;
-        item.style.cssText =
-          "padding:10px 12px;border-radius:8px;cursor:pointer;font-size:14px;" +
-          (code === current ? "background:#e8f5fd;font-weight:600;color:#1d9bf0;" : "");
-        item.addEventListener("mouseenter", () => {
-          if (code !== current) item.style.background = "#f7f9f9";
-        });
-        item.addEventListener("mouseleave", () => {
-          if (code !== current) item.style.background = "";
-        });
-        item.addEventListener("click", () => {
-          GM_setValue("targetLang", code);
-          overlay.remove();
-          location.reload();
-        });
-        list.appendChild(item);
+        const item = ui("div", "padding:10px 12px;border-radius:8px;cursor:pointer;font-size:14px;" +
+          (code === current ? "background:#e8f5fd;font-weight:600;color:#1d9bf0;" : ""), { textContent: `${name} (${code})` });
+        item.addEventListener("mouseenter", () => { if (code !== current) item.style.background = "#f7f9f9"; });
+        item.addEventListener("mouseleave", () => { if (code !== current) item.style.background = ""; });
+        item.addEventListener("click", () => saveAndReload("targetLang", code, overlay));
+        list.append(item);
       }
     }
 
     search.addEventListener("input", () => renderList(search.value));
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
-
-    dialog.append(title, search, list);
-
-    const resetBtn = document.createElement("button");
-    resetBtn.textContent = `Reset to browser default (${browserLang})`;
-    resetBtn.style.cssText =
-      "margin-top:12px;padding:8px;border:1px solid #cfd9de;border-radius:8px;" +
-      "background:none;cursor:pointer;font-size:13px;color:#536471;width:100%;";
-    resetBtn.addEventListener("click", () => {
-      GM_setValue("targetLang", browserLang);
-      overlay.remove();
-      location.reload();
-    });
-    dialog.appendChild(resetBtn);
-
-    overlay.appendChild(dialog);
-    document.body.appendChild(overlay);
+    const resetBtn = ui("button", "margin-top:12px;padding:8px;border:1px solid #cfd9de;border-radius:8px;background:none;cursor:pointer;font-size:13px;color:#536471;width:100%;",
+      { textContent: `Reset to browser default (${browserLang})` });
+    resetBtn.addEventListener("click", () => saveAndReload("targetLang", browserLang, overlay));
+    dialog.append(search, list, resetBtn);
+    document.body.append(overlay);
     search.focus();
     renderList();
   }
@@ -302,63 +284,34 @@
   GM_registerMenuCommand("Set translation language", showLanguagePicker);
 
   function showTranslatorSettings() {
-    document.getElementById("gt-translator-settings")?.remove();
     const config = getTranslatorSettings();
-    const overlay = document.createElement("div");
-    overlay.id = "gt-translator-settings";
-    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999999;display:flex;align-items:center;justify-content:center;";
-    const dialog = document.createElement("div");
-    dialog.style.cssText = "background:#fff;border-radius:16px;padding:24px;width:500px;max-width:94vw;max-height:90vh;overflow:auto;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#0f1419;box-shadow:0 8px 28px rgba(0,0,0,.25);";
-    const title = document.createElement("div");
-    title.textContent = "Translator settings";
-    title.style.cssText = "font-size:18px;font-weight:700;margin-bottom:16px;";
-    dialog.append(title);
+    const { overlay, dialog } = createDialog("gt-translator-settings", "Translator settings",
+      "width:500px;max-width:94vw;max-height:90vh;overflow:auto;box-sizing:border-box;");
 
     function checkbox(label, checked) {
-      const row = document.createElement("label");
-      row.style.cssText = "display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer;margin:10px 0;";
-      const input = document.createElement("input");
-      input.type = "checkbox";
-      input.checked = checked;
-      row.append(input, document.createTextNode(label));
-      dialog.append(row);
+      const input = ui("input", "", { type: "checkbox", checked });
+      dialog.append(ui("label", "display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer;margin:10px 0;", {}, input, label));
       return input;
     }
     function field(parent, label, input) {
-      const row = document.createElement("label");
-      row.style.cssText = "display:block;font-size:13px;font-weight:600;margin:14px 0 0;";
-      const caption = document.createElement("span");
-      caption.textContent = label;
       input.style.cssText = "display:block;width:100%;padding:9px 11px;border:1px solid #cfd9de;border-radius:8px;font-size:13px;box-sizing:border-box;outline:none;margin-top:6px;background:white;color:#0f1419;";
-      row.append(caption, input);
+      const row = ui("label", "display:block;font-size:13px;font-weight:600;margin:14px 0 0;", {}, ui("span", "", { textContent: label }), input);
       parent.append(row);
       return row;
     }
     function select(parent, label, choices, current) {
-      const input = document.createElement("select");
-      for (const [value, text] of choices) {
-        const option = document.createElement("option");
-        option.value = value;
-        option.textContent = text;
-        input.append(option);
-      }
+      const input = ui("select", "", {}, ...choices.map(([value, textContent]) => ui("option", "", { value, textContent })));
       input.value = current;
       field(parent, label, input);
       return input;
     }
     function textField(parent, label, value, type = "text") {
-      const input = document.createElement("input");
-      input.type = type;
-      input.value = value;
-      input.spellcheck = false;
+      const input = ui("input", "", { type, value, spellcheck: false });
       if (type === "password") input.autocomplete = "off";
-      const row = field(parent, label, input);
-      return { input, row };
+      return { input, row: field(parent, label, input) };
     }
-    function hint(parent, text) {
-      const node = document.createElement("div");
-      node.style.cssText = "font-size:12px;color:#536471;line-height:1.5;margin-top:8px;";
-      node.textContent = text;
+    function hint(parent, textContent) {
+      const node = ui("div", "font-size:12px;color:#536471;line-height:1.5;margin-top:8px;", { textContent });
       parent.append(node);
       return node;
     }
@@ -373,17 +326,13 @@
     const bodyTypeInput = select(postFields, "API Type", [["OpenAI", "OpenAI Compatible"], ["custom", "Custom"]], config.bodyType);
     const { input: apiKeyInput } = textField(postFields, "API Key (optional)", config.apiKey, "password");
     const { input: modelInput, row: modelRow } = textField(postFields, "Model Name", config.modelName);
-    const bodyInput = document.createElement("textarea");
-    bodyInput.rows = 7;
-    bodyInput.spellcheck = false;
-    bodyInput.value = config.bodyContent;
+    const bodyInput = ui("textarea", "", { rows: 7, spellcheck: false, value: config.bodyContent });
     const bodyRow = field(postFields, "Request Body (JSON)", bodyInput);
     const bodyHint = hint(postFields, "JSON string values: $q = raw text; $sl / $tl = English language names; $slCode / $tlCode = language codes. Text is escaped automatically.");
     const responseInput = select(dialog, "Response Style", [["Google", "Google Translate"], ["OpenAI", "OpenAI"]], config.responseStyle);
     hint(dialog, "Google: sentences[].trans / src (or Google array format). OpenAI: choices[0].message.content, with either sentence/src JSON or plain translated text. Request method and response style are independent.");
     hint(dialog, "The default local URL does not specify a target. Its output language is controlled by the adapter. A configured endpoint must support the desired target; on failure, text is sent to Google Translate.");
-    const error = document.createElement("div");
-    error.style.cssText = "font-size:12px;color:#c62828;margin-top:8px;";
+    const error = ui("div", "font-size:12px;color:#c62828;margin-top:8px;");
     dialog.append(error);
     function refresh() {
       const post = methodInput.value === "POST";
@@ -397,49 +346,37 @@
     methodInput.addEventListener("change", refresh);
     bodyTypeInput.addEventListener("change", refresh);
     refresh();
-    const actions = document.createElement("div");
-    actions.style.cssText = "display:flex;justify-content:flex-end;gap:10px;margin-top:20px;flex-wrap:wrap;";
+    const actions = ui("div", "display:flex;justify-content:flex-end;gap:10px;margin-top:20px;flex-wrap:wrap;");
     function action(label, primary, onClick) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.textContent = label;
-      button.style.cssText = "padding:9px 16px;border-radius:8px;cursor:pointer;font-weight:600;" + (primary ? "border:0;background:#1d9bf0;color:white;" : "border:1px solid #cfd9de;background:white;color:#0f1419;");
+      const button = ui("button", "padding:9px 16px;border-radius:8px;cursor:pointer;font-weight:600;" +
+        (primary ? "border:0;background:#1d9bf0;color:white;" : "border:1px solid #cfd9de;background:white;color:#0f1419;"), { type: "button", textContent: label });
       button.addEventListener("click", onClick);
       actions.append(button);
     }
+    const controls = {
+      enabled: enabledInput, usePlamo: plamoInput, method: methodInput, url: urlInput,
+      bodyType: bodyTypeInput, apiKey: apiKeyInput, modelName: modelInput,
+      bodyContent: bodyInput, responseStyle: responseInput,
+    };
     action("Reset defaults", false, () => {
-      enabledInput.checked = DEFAULT_TRANSLATOR.enabled;
-      plamoInput.checked = DEFAULT_TRANSLATOR.usePlamo;
-      methodInput.value = DEFAULT_TRANSLATOR.method;
-      urlInput.value = DEFAULT_TRANSLATOR.url;
-      bodyTypeInput.value = DEFAULT_TRANSLATOR.bodyType;
-      apiKeyInput.value = DEFAULT_TRANSLATOR.apiKey;
-      modelInput.value = DEFAULT_TRANSLATOR.modelName;
-      bodyInput.value = DEFAULT_TRANSLATOR.bodyContent;
-      responseInput.value = DEFAULT_TRANSLATOR.responseStyle;
+      for (const [key, input] of Object.entries(controls)) {
+        input[input.type === "checkbox" ? "checked" : "value"] = DEFAULT_TRANSLATOR[key];
+      }
       error.textContent = "";
       refresh();
     });
     action("Cancel", false, () => overlay.remove());
     action("Save", true, () => {
-      const next = {
-        enabled: enabledInput.checked, usePlamo: plamoInput.checked,
-        method: methodInput.value, url: urlInput.value.trim(),
-        bodyType: bodyTypeInput.value, apiKey: apiKeyInput.value.trim(),
-        modelName: modelInput.value.trim(), bodyContent: bodyInput.value,
-        responseStyle: responseInput.value,
-      };
+      const next = Object.fromEntries(Object.entries(controls).map(([key, input]) => [key,
+        input.type === "checkbox" ? input.checked :
+          ["url", "apiKey", "modelName"].includes(key) ? input.value.trim() : input.value]));
       if (next.enabled) {
         try { buildExternalRequest(next, 'Test "text"\nline', "en", getTargetLang()); }
         catch (err) { error.textContent = err.message; return; }
       }
-      GM_setValue("translatorSettings", next);
-      overlay.remove();
-      location.reload();
+      saveAndReload("translatorSettings", next, overlay);
     });
     dialog.append(actions);
-    overlay.addEventListener("click", event => { if (event.target === overlay) overlay.remove(); });
-    overlay.append(dialog);
     document.body.append(overlay);
   }
 
@@ -591,7 +528,7 @@
     }
   }
 
-  function getTweetText(button) {
+  function getTranslationSource(button) {
     // Community notes have no tweetText testid; target the sibling div after the button's container.
     const birdwatch = button.closest('[data-testid="birdwatch-pivot"]');
     if (birdwatch) {
@@ -602,7 +539,7 @@
       let sibling = container?.nextElementSibling;
       while (sibling) {
         if (sibling.tagName === "DIV" && sibling.innerText.trim()) {
-          return { element: sibling, text: sibling.innerText };
+          return sibling;
         }
         sibling = sibling.nextElementSibling;
       }
@@ -613,10 +550,10 @@
     const article = button.closest("article");
     let node = button.parentElement;
     while (node && node !== document.body) {
-      const matches = [...node.querySelectorAll('[data-testid="tweetText"], [data-testid="UserDescription"]')]
+      const matches = [...node.querySelectorAll(SOURCE_SELECTOR)]
         .filter((element) => article ? element.closest("article") === article : !element.closest("article"));
       if (matches.length === 1) {
-        return { element: matches[0], text: matches[0].innerText };
+        return matches[0];
       }
       if (node === article || node.matches("main, [role=main]")) break;
       node = node.parentElement;
@@ -740,7 +677,7 @@
   function updateLabels(state, label) {
     for (const span of state.labels) {
       if (!span.isConnected) state.labels.delete(span);
-      else span.textContent = label;
+      else if (span.textContent !== label) span.textContent = label;
     }
   }
 
@@ -780,8 +717,7 @@
 
   function checkSourceChanged(element) {
     const state = translationStates.get(element);
-    if (state?.snapshot !== null && state?.snapshot !== undefined &&
-        state.snapshot !== element.innerHTML) {
+    if (state?.snapshot != null && state.snapshot !== element.innerHTML) {
       resetTranslation(element, state);
       return true;
     }
@@ -816,13 +752,9 @@
     if (state.pending) return;
 
     if (state.output) {
-      if (state.visible) {
-        hideTranslation(tweetTextEl, state);
-        updateLabels(state, "Show translation");
-      } else {
-        showTranslation(tweetTextEl, state);
-        updateLabels(state, "Hide translation");
-      }
+      if (state.visible) hideTranslation(tweetTextEl, state);
+      else showTranslation(tweetTextEl, state);
+      updateLabels(state, state.visible ? "Hide translation" : "Show translation");
       return;
     }
 
@@ -885,12 +817,12 @@
       autoDrainScheduled = false;
       if (activeAutoTranslations >= MAX_AUTO_TRANSLATIONS) return;
       // Sort only visible, queued tweets; avoid scanning the whole timeline.
-      const candidates = [...autoQueue].filter(shouldQueueAutomatic)
-        .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
-      const candidateSet = new Set(candidates);
+      const candidates = [];
       for (const element of autoQueue) {
-        if (!candidateSet.has(element)) autoQueue.delete(element);
+        if (shouldQueueAutomatic(element)) candidates.push(element);
+        else autoQueue.delete(element);
       }
+      candidates.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
       for (const element of candidates) {
         if (activeAutoTranslations >= MAX_AUTO_TRANSLATIONS) break;
         autoQueue.delete(element);
@@ -955,13 +887,7 @@
       if (!isProfileBio(element)) continue;
       const state = translationStates.get(element);
       if (state) resetTranslation(element, state);
-      const button = feedButtonsByTweet.get(element);
-      if (button) {
-        feedButtonOwners.delete(button);
-        button.remove();
-        feedButtonsByTweet.delete(element);
-      }
-      delete element.dataset.gtFeedPatched;
+      removeFeedButton(element);
     }
   }
 
@@ -989,100 +915,97 @@
       btn.querySelector("span");
   }
 
-  function findNativeTranslateButton(node) {
-    if (!(node instanceof Element) || node.closest('[data-xtranslate-owned="true"]') ||
-        node.closest('[data-testid="tweetText"], [data-testid="UserDescription"]')) return null;
+  const OWNED_SELECTOR = '[data-xtranslate-owned="true"]';
+  const PATCHED_SELECTOR = '[data-google-translate="patched"]';
+  const NATIVE_BUTTON_SELECTOR = 'button, [role="button"], a';
+  const NATIVE_CANDIDATE_SELECTOR = `span, ${NATIVE_BUTTON_SELECTOR}, [aria-label], [title], ${NATIVE_TRANSLATE_TESTID_SELECTOR}`;
 
-    const marker = node.closest(NATIVE_TRANSLATE_TESTID_SELECTOR);
-    if (!marker && ![node.textContent, node.getAttribute("aria-label"), node.getAttribute("title")]
-        .some(isNativeTranslateLabel)) return null;
-
-    const btn = node.closest('button, [role="button"], a') || marker ||
-      (node.matches("span") ? node.parentElement : null);
-    if (!btn || btn.closest('[data-xtranslate-owned="true"]') ||
-        btn.closest('[data-testid="tweetText"], [data-testid="UserDescription"]') ||
-        [btn.textContent, btn.getAttribute("aria-label"), btn.getAttribute("title")]
-          .some(isNativeOriginalLabel)) return null;
-    return getTweetText(btn) ? btn : null;
+  function matchesButtonLabel(node, predicate) {
+    return [node.textContent, node.getAttribute("aria-label"), node.getAttribute("title")].some(predicate);
   }
 
-  function handleTranslateButton(btn) {
-    const tweet = getTweetText(btn);
-    if (!tweet) return;
+  function findNativeTranslateButton(node) {
+    if (!(node instanceof Element) || node.closest(OWNED_SELECTOR) || node.closest(SOURCE_SELECTOR)) return null;
+
+    const marker = node.closest(NATIVE_TRANSLATE_TESTID_SELECTOR);
+    if (!marker && !matchesButtonLabel(node, isNativeTranslateLabel)) return null;
+
+    const btn = node.closest(NATIVE_BUTTON_SELECTOR) || marker ||
+      (node.matches("span") ? node.parentElement : null);
+    if (!btn || btn.closest(OWNED_SELECTOR) || btn.closest(SOURCE_SELECTOR) ||
+        matchesButtonLabel(btn, isNativeOriginalLabel)) return null;
+    return btn;
+  }
+
+  function handleTranslateButton(btn, element) {
+    if (!element) return;
     // Bios use their own toggle independently of any native translate control.
-    if (isProfileBio(tweet.element)) {
+    if (isProfileBio(element)) {
       btn.dataset.xtranslateSkip = "true";
-      injectFeedButton(tweet.element);
+      injectFeedButton(element);
       return;
     }
-    if (shouldSkipTranslation(tweet.element)) {
+    if (shouldSkipTranslation(element)) {
       btn.dataset.xtranslateSkip = "true";
-      stopObservingAutomatic(tweet.element);
+      stopObservingAutomatic(element);
       return;
     }
     delete btn.dataset.xtranslateSkip;
-    if (btn.dataset.googleTranslate === "patched") {
-      watchAutomaticTranslation(tweet.element, nativeTranslateLabelSpan(btn));
-      return;
+    if (btn.dataset.googleTranslate !== "patched") {
+      btn.dataset.googleTranslate = "patched";
+      replaceIcon(btn);
     }
-    btn.dataset.googleTranslate = "patched";
-    replaceIcon(btn);
-    watchAutomaticTranslation(tweet.element, nativeTranslateLabelSpan(btn));
+    watchAutomaticTranslation(element, nativeTranslateLabelSpan(btn));
   }
 
   // Intercept before X's React root capture handler, not just on the button itself.
   document.addEventListener("click", (e) => {
     const target = e.target instanceof Element ? e.target : e.target?.parentElement;
-    if (!target || target.closest('[data-xtranslate-owned="true"]')) return;
-    let btn = target.closest('[data-google-translate="patched"]');
-    if (!btn) {
-      const candidate = target.closest(`button, [role="button"], a, ${NATIVE_TRANSLATE_TESTID_SELECTOR}`) ||
-        target.closest("span");
-      btn = candidate && findNativeTranslateButton(candidate);
-      if (btn) handleTranslateButton(btn);
-    }
-    if (!btn || [btn.textContent, btn.getAttribute("aria-label"), btn.getAttribute("title")]
-        .some(isNativeOriginalLabel)) return;
-    const tweet = getTweetText(btn);
-    if (!tweet) return;
+    if (!target || target.closest(OWNED_SELECTOR)) return;
+    const patched = target.closest(PATCHED_SELECTOR);
+    const candidate = patched || target.closest(`${NATIVE_BUTTON_SELECTOR}, ${NATIVE_TRANSLATE_TESTID_SELECTOR}`) || target.closest("span");
+    const btn = patched || (candidate && findNativeTranslateButton(candidate));
+    if (!btn || matchesButtonLabel(btn, isNativeOriginalLabel)) return;
+    const element = getTranslationSource(btn);
+    if (!element) return;
+    if (!patched) handleTranslateButton(btn, element);
     e.preventDefault();
     e.stopImmediatePropagation();
-    if (!shouldSkipTranslation(tweet.element)) {
-      doTranslate(tweet.element, nativeTranslateLabelSpan(btn));
-    }
+    if (!shouldSkipTranslation(element)) doTranslate(element, nativeTranslateLabelSpan(btn));
   }, true);
+
+  function removeFeedButton(element) {
+    const button = feedButtonsByTweet.get(element);
+    if (!button) return;
+    feedButtonOwners.delete(button);
+    button.remove();
+    feedButtonsByTweet.delete(element);
+  }
 
   function injectFeedButton(el) {
     if (shouldSkipTranslation(el)) {
       feedButtonsByTweet.get(el)?.remove();
-      delete el.dataset.gtFeedPatched;
       stopObservingAutomatic(el);
       const state = translationStates.get(el);
       if (state) resetTranslation(el, state);
       return;
     }
     const bio = isProfileBio(el);
-    if (!el.parentElement || el.closest('[data-xtranslate-owned="true"]')) return;
+    if (!el.parentElement || el.closest(OWNED_SELECTOR)) return;
     const previousButton = feedButtonsByTweet.get(el);
     if (previousButton?.isConnected && previousButton.parentElement === el.parentElement) {
       if (bio) watchAutomaticTranslation(el, previousButton.querySelector("span"));
       return;
     }
-    if (previousButton) {
-      feedButtonOwners.delete(previousButton);
-      previousButton.remove();
-      feedButtonsByTweet.delete(el);
-    }
-    delete el.dataset.gtFeedPatched;
+    removeFeedButton(el);
 
     const article = el.closest("article");
     if (!bio && !article) return;
     // Avoid adding a toggle to empty bios, including temporarily empty React nodes.
     if (bio && !buildTranslationSource(el).text.trim()) return;
-    const existingBtn = bio ? null : article.querySelector('[data-google-translate="patched"]');
+    const existingBtn = bio ? null : article.querySelector(PATCHED_SELECTOR);
     if (existingBtn) {
-      const tweet = getTweetText(existingBtn);
-      if (tweet?.element === el) watchAutomaticTranslation(el, existingBtn.querySelector("span"));
+      if (getTranslationSource(existingBtn) === el) watchAutomaticTranslation(el, existingBtn.querySelector("span"));
       return;
     }
 
@@ -1107,7 +1030,6 @@
     el.parentElement.insertBefore(btn, el);
     feedButtonOwners.set(btn, el);
     feedButtonsByTweet.set(el, btn);
-    el.dataset.gtFeedPatched = "true";
     const label = btn.querySelector("span");
     const state = translationStates.get(el);
     if (state) {
@@ -1118,50 +1040,57 @@
     watchAutomaticTranslation(el, label);
   }
 
+  function* matchingElements(root, selector) {
+    if (root.matches(selector)) yield root;
+    yield* root.querySelectorAll(selector);
+  }
+
   function patchNativeButtons(root) {
-    const selector = `span, button, [role="button"], a, [aria-label], [title], ${NATIVE_TRANSLATE_TESTID_SELECTOR}`;
-    const candidates = [];
-    if (root.matches(selector)) candidates.push(root);
-    candidates.push(...root.querySelectorAll(selector));
-    for (const candidate of candidates) {
+    const seen = new Set();
+    for (const candidate of matchingElements(root, NATIVE_CANDIDATE_SELECTOR)) {
       const btn = findNativeTranslateButton(candidate);
-      if (btn) handleTranslateButton(btn);
+      if (!btn || seen.has(btn)) continue;
+      seen.add(btn);
+      handleTranslateButton(btn, getTranslationSource(btn));
     }
   }
 
   function patchFeedButtons(root) {
-    if (root.matches(SOURCE_SELECTOR)) injectFeedButton(root);
-    for (const el of root.querySelectorAll(SOURCE_SELECTOR)) injectFeedButton(el);
+    for (const el of matchingElements(root, SOURCE_SELECTOR)) injectFeedButton(el);
   }
 
   function patchSubtree(root) {
-    if (!root.isConnected || root.closest('[data-xtranslate-owned="true"]')) return;
+    if (!root.isConnected || root.closest(OWNED_SELECTOR)) return;
     patchNativeButtons(root);
     patchFeedButtons(root);
   }
 
-  const pendingRoots = new Set();
+  const pendingNativeRoots = new Set();
+  const pendingFeedRoots = new Set();
   let patchScheduled = false;
-  function queuePatch(root) {
-    if (!root.isConnected || root.closest('[data-xtranslate-owned="true"]')) return;
-    pendingRoots.add(root);
+
+  function flushRoots(roots, patch) {
+    const batch = new Set(roots);
+    roots.clear();
+    for (const root of batch) {
+      if (!root.isConnected || root.closest(OWNED_SELECTOR)) continue;
+      let parent = root.parentElement;
+      while (parent && !batch.has(parent)) parent = parent.parentElement;
+      if (!parent) patch(root);
+    }
+  }
+
+  function queuePatch(root, native = true, feed = true) {
+    if (!root?.isConnected || root.closest(OWNED_SELECTOR)) return;
+    if (native) pendingNativeRoots.add(root);
+    if (feed) pendingFeedRoots.add(root);
     if (patchScheduled) return;
     patchScheduled = true;
     requestAnimationFrame(() => {
       patchScheduled = false;
-      const roots = [...pendingRoots];
-      pendingRoots.clear();
-      const rootSet = new Set(roots);
-      for (const node of roots) {
-        if (!node.isConnected) continue;
-        let parent = node.parentElement;
-        let hasQueuedAncestor = false;
-        while (parent) {
-          if (rootSet.has(parent)) { hasQueuedAncestor = true; break; }
-          parent = parent.parentElement;
-        }
-        if (!hasQueuedAncestor) patchSubtree(node);
-      }
+      // Handle native controls before inserting replacement feed buttons.
+      flushRoots(pendingNativeRoots, patchNativeButtons);
+      flushRoots(pendingFeedRoots, patchFeedButtons);
     });
   }
 
@@ -1169,13 +1098,7 @@
     const changed = checkSourceChanged(element);
     if (isProfileBio(element)) {
       if (!buildTranslationSource(element).text.trim()) {
-        const button = feedButtonsByTweet.get(element);
-        if (button) {
-          feedButtonOwners.delete(button);
-          button.remove();
-          feedButtonsByTweet.delete(element);
-        }
-        delete element.dataset.gtFeedPatched;
+        removeFeedButton(element);
         stopObservingAutomatic(element);
         return;
       }
@@ -1190,33 +1113,25 @@
   const observer = new MutationObserver((records) => {
     for (const record of records) {
       if (record.type === "attributes") {
-        if (record.attributeName === "lang") {
-          const article = record.target.closest("article");
-          if (article) patchNativeButtons(article);
-        }
-        if (record.target.matches(SOURCE_SELECTOR)) {
-          if (record.attributeName === "lang" && !isProfileBio(record.target)) {
-            const state = translationStates.get(record.target);
-            if (state) resetTranslation(record.target, state);
+        const target = record.target;
+        const langChanged = record.attributeName === "lang";
+        if (langChanged) queuePatch(target.closest("article"), true, false);
+        else queuePatch(target, true, false);
+        if (target.matches(SOURCE_SELECTOR)) {
+          if (langChanged && !isProfileBio(target)) {
+            const state = translationStates.get(target);
+            if (state) resetTranslation(target, state);
           }
-          injectFeedButton(record.target);
+          queuePatch(target, false, true);
         }
-        if (record.attributeName !== "lang") patchNativeButtons(record.target);
         continue;
       }
-      if (record.type === "characterData") {
-        const parent = record.target.parentElement;
-        const span = parent?.closest("span");
-        if (span) patchNativeButtons(span);
-        const text = parent?.closest(SOURCE_SELECTOR);
-        if (text) refreshChangedSource(text);
-        continue;
-      }
-      const parent = record.target.nodeType === Node.ELEMENT_NODE ? record.target : null;
-      const span = parent?.closest("span");
-      if (span) patchNativeButtons(span);
-      const parentText = parent?.closest(SOURCE_SELECTOR);
-      if (parentText) refreshChangedSource(parentText);
+      const parent = record.type === "characterData" ? record.target.parentElement :
+        record.target.nodeType === Node.ELEMENT_NODE ? record.target : null;
+      queuePatch(parent?.closest("span"), true, false);
+      const source = parent?.closest(SOURCE_SELECTOR);
+      if (source) refreshChangedSource(source);
+      if (record.type === "characterData") continue;
       for (const node of record.addedNodes) {
         if (node.nodeType === Node.ELEMENT_NODE) queuePatch(node);
       }
@@ -1238,7 +1153,6 @@
         if (tweet?.isConnected) {
           const state = translationStates.get(tweet);
           if (state && (state.visible || state.pending)) resetTranslation(tweet, state);
-          delete tweet.dataset.gtFeedPatched;
           queuePatch(tweet);
         }
       }
